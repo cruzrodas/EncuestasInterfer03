@@ -1,0 +1,135 @@
+﻿@page "/TipoIdentificacion/agregar"
+@page "/TipoIdentificacion/agregar/{IdTipoIdentificacion:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.TipoIdentificacionService
+@using MudBlazor
+
+@inject ITipoIdentificacionServices tipoIdentificacionServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdTipoIdentificacion.HasValue ? "Editar Tipo de Identificación" : "Nuevo Tipo de Identificación")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdTipoIdentificacion.HasValue ? "Editar Tipo de Identificación" : "Agregar Tipo de Identificación")
+        </MudText>
+
+        <EditForm Model="tipoIdentificacion" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Nombre de Identificación"
+                                  @bind-Value="tipoIdentificacion.NombreIdentificacion"
+                                  For="@(() => tipoIdentificacion.NombreIdentificacion)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El nombre de identificación es requerido"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Immediate="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Descripción"
+                                  @bind-Value="tipoIdentificacion.DescripcionIdentificacion"
+                                  For="@(() => tipoIdentificacion.DescripcionIdentificacion)"
+                                  Variant="Variant.Outlined"
+                                  Lines="3"
+                                  MaxLength="250"
+                                  Counter="250"
+                                  Immediate="true" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/TipoIdentificacion"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdTipoIdentificacion.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdTipoIdentificacion { get; set; }
+
+    private TipoIdentificacion tipoIdentificacion = new TipoIdentificacion();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdTipoIdentificacion.HasValue)
+        {
+            try
+            {
+                tipoIdentificacion = await tipoIdentificacionServices.GetByIdAsync(IdTipoIdentificacion.Value);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar el tipo de identificación: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/TipoIdentificacion");
+            }
+        }
+        else
+        {
+            tipoIdentificacion = new TipoIdentificacion();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await tipoIdentificacionServices.AddUpdateAsync(tipoIdentificacion);
+
+            if (result)
+            {
+                var message = IdTipoIdentificacion.HasValue ? "Tipo de Identificación actualizado correctamente" : "Tipo de Identificación creado correctamente";
+                Snackbar.Add(message, Severity.Success);
+                NavigationManager.NavigateTo("/TipoIdentificacion");
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar el Tipo de Identificación", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,124 @@
+﻿@page "/TipoPublicidad/agregar"
+@page "/TipoPublicidad/agregar/{IdTipoPublicidad:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.TipoPublicidadServices
+@using MudBlazor
+
+@inject ITipoPublicidadServices tipoPublicidadServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdTipoPublicidad.HasValue ? "Editar Tipo de Publicidad" : "Nuevo Tipo de Publicidad")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdTipoPublicidad.HasValue ? "Editar Tipo de Publicidad" : "Agregar Tipo de Publicidad")
+        </MudText>
+
+        <EditForm Model="tipoPublicidad" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Tipo de Publicidad"
+                                  @bind-Value="tipoPublicidad.NombreTipoPublicidad"
+                                  For="@(() => tipoPublicidad.NombreTipoPublicidad)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El tipo de publicidad es requerido"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Immediate="true" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/TipoPublicidad"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdTipoPublicidad.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdTipoPublicidad { get; set; }
+
+    private TipoPublicidad tipoPublicidad = new TipoPublicidad();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdTipoPublicidad.HasValue)
+        {
+            try
+            {
+                tipoPublicidad = await tipoPublicidadServices.GetByIdAsync(IdTipoPublicidad.Value);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar el tipo de publicidad: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/TipoPublicidad");
+            }
+        }
+        else
+        {
+            tipoPublicidad = new TipoPublicidad();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await tipoPublicidadServices.AddUpdateAsync(tipoPublicidad);
+
+            if (result)
+            {
+                var message = IdTipoPublicidad.HasValue ? "Tipo de Publicidad actualizado correctamente" : "Tipo de Publicidad creado correctamente";
+                Snackbar.Add(message, Severity.Success);
+                NavigationManager.NavigateTo("/TipoPublicidad");
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar el Tipo de Publicidad", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

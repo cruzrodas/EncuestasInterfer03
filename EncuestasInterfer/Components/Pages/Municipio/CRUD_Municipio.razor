@@ -1,0 +1,227 @@
+﻿@page "/Municipio/agregar"
+@page "/Municipio/agregar/{IdMunicipio:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.MunicipioServices
+@using EncuestasInterfer.Services.DepartamentoService
+@using EncuestasInterfer.Services.NacionalidadServices
+@using MudBlazor
+
+@inject IMunicipioServices municipioServices
+@inject IDepartamenteServices departamentoServices
+@inject INacionalidadService nacionalidadServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdMunicipio.HasValue ? "Editar Municipio" : "Nuevo Municipio")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdMunicipio.HasValue ? "Editar Municipio" : "Agregar Municipio")
+        </MudText>
+
+        <EditForm Model="municipio" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Nombre del Municipio"
+                                  @bind-Value="municipio.NombreMunicipio"
+                                  For="@(() => municipio.NombreMunicipio)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El nombre del municipio es requerido"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Immediate="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="País" @bind-Value="selectedNacionalidadId"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Seleccione un país">
+                        <MudSelectItem T="int?" Value="null">Seleccione un país</MudSelectItem>
+                        @if (nacionalidades != null)
+                        {
+                            @foreach (var nacionalidad in nacionalidades)
+                            {
+                                <MudSelectItem T="int?" Value="@nacionalidad.IdNacionalidad">@nacionalidad.NombrePais</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="Departamento" @bind-Value="municipio.IdDepartamento"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Seleccione un departamento"
+                               Disabled="@(selectedNacionalidadId == null)">
+                        <MudSelectItem T="int?" Value="null">Seleccione un departamento</MudSelectItem>
+                        @if (departamentos != null)
+                        {
+                            @foreach (var departamento in departamentos)
+                            {
+                                <MudSelectItem T="int?" Value="@departamento.IdDepartamento">@departamento.NombreDepartamento</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/Municipio"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdMunicipio.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdMunicipio { get; set; }
+
+    private Municipio municipio = new Municipio();
+    private List<Nacionalidad> nacionalidades = new();
+    private List<Departamento> departamentos = new();
+    private int? _selectedNacionalidadId;
+    private bool isSubmitting = false;
+
+    private int? selectedNacionalidadId
+    {
+        get => _selectedNacionalidadId;
+        set
+        {
+            if (_selectedNacionalidadId != value)
+            {
+                _selectedNacionalidadId = value;
+                municipio.IdDepartamento = null; // Limpiar el departamento seleccionado
+                departamentos.Clear(); // Limpiar la lista de departamentos
+
+                if (value.HasValue)
+                {
+                    // Cargar departamentos de forma asíncrona
+                    InvokeAsync(async () =>
+                    {
+                        await LoadDepartamentos(value.Value);
+                        StateHasChanged();
+                    });
+                }
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNacionalidades();
+
+        if (IdMunicipio.HasValue)
+        {
+            try
+            {
+                municipio = await municipioServices.GetByIdAsync(IdMunicipio.Value);
+
+                // Establecer la nacionalidad desde el departamento del municipio
+                if (municipio.IdDepartamentoNavigation != null)
+                {
+                    _selectedNacionalidadId = municipio.IdDepartamentoNavigation.IdNacionalidad;
+
+                    if (_selectedNacionalidadId.HasValue)
+                    {
+                        await LoadDepartamentos(_selectedNacionalidadId.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar el municipio: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/Municipio");
+            }
+        }
+        else
+        {
+            municipio = new Municipio();
+        }
+    }
+
+    private async Task LoadNacionalidades()
+    {
+        try
+        {
+            nacionalidades = await nacionalidadServices.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar nacionalidades: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadDepartamentos(int nacionalidadId)
+    {
+        try
+        {
+            departamentos = await departamentoServices.GetByNacionalidadAsync(nacionalidadId);
+            StateHasChanged(); // Forzar actualización de la UI
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar departamentos: {ex.Message}", Severity.Error);
+            departamentos = new List<Departamento>();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await municipioServices.AddUpdateAsync(municipio);
+
+            if (result)
+            {
+                var message = IdMunicipio.HasValue ? "Municipio actualizado correctamente" : "Municipio creado correctamente";
+                Snackbar.Add(message, Severity.Success);
+                NavigationManager.NavigateTo("/Municipio");
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar el Municipio", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,170 @@
+﻿@page "/TipoIdentificacion"
+
+@using System.Text.Json
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.TipoIdentificacionService
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@inject ITipoIdentificacionServices tipoIdentificacionServices
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">Tipos de Identificación</h3>
+
+    <a href="/TipoIdentificacion/agregar"
+       class="btn mt-2"
+       style="background-color: #a91f23; color: white; border-color: #a91f23;">
+        Nuevo Tipo de Identificación
+    </a>
+
+    <br />
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-2 text-center" Align="Align.Center">Tipos de Identificación Disponibles</MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Buscar por Nombre o Descripción"
+                              Variant="Variant.Outlined"
+                              @bind-Value="searchTerm"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Primary"
+                              OnDebounceIntervalElapsed="Search" />
+            </MudItem>
+        </MudGrid>
+
+        <br />
+
+        @if (isLoading)
+        {
+            <div class="spinner-container">
+                <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+            </div>
+        }
+        else if (paginatedResult == null || paginatedResult.Items == null || !paginatedResult.Items.Any())
+        {
+            <MudAlert Severity="Severity.Error">Error al cargar los datos.</MudAlert>
+        }
+        else
+        {
+            <MudTable T="TipoIdentificacion"
+                      ServerData="ServerReload"
+                      Dense="true"
+                      Hover="true"
+                      Bordered="true"
+                      Loading="@isLoading"
+                      RowClass="cursor-pointer"
+                      Class="printable-table">
+
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Nombre</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Class="acciones">Acciones</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.IdTipoIdentificacion</MudTd>
+                    <MudTd DataLabel="Nombre">@context.NombreIdentificacion</MudTd>
+                    <MudTd DataLabel="Descripción">@context.DescripcionIdentificacion</MudTd>
+                    <MudTd DataLabel="Acciones" Class="acciones">
+                        <div class="d-grid gap-2 d-md-block">
+                            <a href="/TipoIdentificacion/agregar/@context.IdTipoIdentificacion" class="btn btn-warning">Editar</a>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Tipos de identificación por página:"
+                                   InfoFormat="@infoFormat"
+                                   PageSizeOptions="new int[] { 20, 25, 30, 40, int.MaxValue }"
+                                   OnPageChanged="LoadPage"
+                                   Class="acciones" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+</MudContainer>
+
+@code {
+    private MPaginatedResult<TipoIdentificacion>? paginatedResult;
+    private bool isLoading = false;
+    private string infoFormat = "{first_item}-{last_item} de {all_items}";
+    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+    private const int PageSize = 25;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPage(1);
+    }
+
+    private async Task LoadPage(int page)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            paginatedResult = await tipoIdentificacionServices.GetPaginatedAsync(page, PageSize, searchTerm);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPage: {ex.Message}");
+            paginatedResult = new MPaginatedResult<TipoIdentificacion>
+            {
+                Items = new List<TipoIdentificacion>(),
+                TotalCount = 0,
+                PageNumber = page,
+                PageSize = PageSize
+            };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<TipoIdentificacion>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        isLoading = true;
+        try
+        {
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            paginatedResult = await tipoIdentificacionServices.GetPaginatedAsync(page, pageSize, searchTerm);
+
+            return new TableData<TipoIdentificacion>
+            {
+                Items = paginatedResult?.Items ?? new List<TipoIdentificacion>(),
+                TotalItems = paginatedResult?.TotalCount ?? 0
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en ServerReload: {ex.Message}");
+            return new TableData<TipoIdentificacion>
+            {
+                Items = new List<TipoIdentificacion>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Search()
+    {
+        await LoadPage(1);
+    }
+}

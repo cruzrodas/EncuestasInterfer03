@@ -1,0 +1,157 @@
+﻿@page "/Departamento/agregar"
+@page "/Departamento/agregar/{IdDepartamento:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.DepartamentoService
+@using EncuestasInterfer.Services.NacionalidadServices
+@using MudBlazor
+
+@inject IDepartamenteServices departamentoServices
+@inject INacionalidadService nacionalidadServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdDepartamento.HasValue ? "Editar Departamento" : "Nuevo Departamento")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdDepartamento.HasValue ? "Editar Departamento" : "Agregar Departamento")
+        </MudText>
+
+        <EditForm Model="departamento" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Nombre del Departamento"
+                                  @bind-Value="departamento.NombreDepartamento"
+                                  For="@(() => departamento.NombreDepartamento)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El nombre del departamento es requerido"
+                                  MaxLength="100"
+                                  Counter="100"
+                                  Immediate="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="País" @bind-Value="departamento.IdNacionalidad"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Seleccione un país">
+                        <MudSelectItem T="int?" Value="null">Seleccione un país</MudSelectItem>
+                        @if (nacionalidades != null)
+                        {
+                            @foreach (var nacionalidad in nacionalidades)
+                            {
+                                <MudSelectItem T="int?" Value="@nacionalidad.IdNacionalidad">@nacionalidad.NombrePais</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/Departamento"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdDepartamento.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdDepartamento { get; set; }
+
+    private Departamento departamento = new Departamento();
+    private List<Nacionalidad> nacionalidades = new();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNacionalidades();
+
+        if (IdDepartamento.HasValue)
+        {
+            try
+            {
+                departamento = await departamentoServices.GetByIdAsync(IdDepartamento.Value);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar el departamento: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/Departamento");
+            }
+        }
+        else
+        {
+            departamento = new Departamento();
+        }
+    }
+
+    private async Task LoadNacionalidades()
+    {
+        try
+        {
+            nacionalidades = await nacionalidadServices.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar nacionalidades: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await departamentoServices.AddUpdateAsync(departamento);
+
+            if (result)
+            {
+                var message = IdDepartamento.HasValue ? "Departamento actualizado correctamente" : "Departamento creado correctamente";
+                Snackbar.Add(message, Severity.Success);
+                NavigationManager.NavigateTo("/Departamento");
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar el Departamento", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}
