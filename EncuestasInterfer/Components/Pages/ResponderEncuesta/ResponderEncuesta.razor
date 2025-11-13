@@ -70,8 +70,8 @@
                                     </MudText>
                                 </MudCardContent>
                                 <MudCardActions>
-                                    <MudButton Variant="Variant.Filled" 
-                                               Color="Color.Primary" 
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
                                                OnClick="@(() => SeleccionarEncuesta(enc))">
                                         Responder
                                     </MudButton>
@@ -88,7 +88,31 @@
         <!-- Formulario de Respuesta -->
         <MudPaper Elevation="3" Class="pa-4">
             <MudText Typo="Typo.h4" Class="mb-2">@encuesta?.Titulo</MudText>
-            <MudText Typo="Typo.body2" Class="mb-4">@encuesta?.Descripcion</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">@encuesta?.Descripcion</MudText>
+
+            @if (preguntas.Any() && !isLoadingPreguntas)
+            {
+                var preguntasVisibles = preguntas.Count - preguntasOcultas.Count;
+                var preguntasRespondidas = preguntas
+                .Where(p => !preguntasOcultas.Contains(p.IdPregunta))
+                .Count(p =>
+                {
+                    var tipo = p.IdTipoPreguntaNavigation?.NombreTipoPregunta;
+                    if (tipo == "Texto Abierto") return !string.IsNullOrWhiteSpace(respuestasTexto.GetValueOrDefault(p.IdPregunta));
+                    if (tipo == "Opción Única" || tipo == "Sí/No") return respuestasOpcion.GetValueOrDefault(p.IdPregunta).HasValue;
+                    if (tipo == "Opción Múltiple") return respuestasMultiples.GetValueOrDefault(p.IdPregunta)?.Any(x => x.Value) == true;
+                    if (tipo == "Escala Numérica") return respuestasNumericas.GetValueOrDefault(p.IdPregunta).HasValue;
+                    if (tipo == "Fecha") return respuestasFechas.GetValueOrDefault(p.IdPregunta).HasValue;
+                    return false;
+                });
+
+                <MudProgressLinear Color="Color.Primary"
+                                   Value="@((double)preguntasRespondidas / preguntasVisibles * 100)"
+                                   Class="mb-2" />
+                <MudText Typo="Typo.caption" Class="mb-4">
+                    Progreso: @preguntasRespondidas de @preguntasVisibles preguntas respondidas
+                </MudText>
+            }
 
             <MudDivider Class="mb-4" />
 
@@ -100,8 +124,8 @@
 
                 <MudGrid>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="int?" 
-                                   Label="Tipo de Identificación" 
+                        <MudSelect T="int?"
+                                   Label="Tipo de Identificación"
                                    @bind-Value="respuestaEncuesta.IdTipoDocuementoIdentificacion"
                                    Variant="Variant.Outlined"
                                    Required="true">
@@ -132,8 +156,8 @@
                     </MudItem>
 
                     <MudItem xs="12" md="4">
-                        <MudSelect T="int?" 
-                                   Label="Género" 
+                        <MudSelect T="int?"
+                                   Label="Género"
                                    @bind-Value="respuestaEncuesta.IdGenero"
                                    Variant="Variant.Outlined"
                                    Required="true">
@@ -148,8 +172,8 @@
                     </MudItem>
 
                     <MudItem xs="12" md="4">
-                        <MudSelect T="int?" 
-                                   Label="Nacionalidad" 
+                        <MudSelect T="int?"
+                                   Label="Nacionalidad"
                                    @bind-Value="respuestaEncuesta.IdNacionalidad"
                                    Variant="Variant.Outlined"
                                    Required="true">
@@ -164,8 +188,8 @@
                     </MudItem>
 
                     <MudItem xs="12" md="6">
-                        <MudSelect T="int?" 
-                                   Label="Departamento" 
+                        <MudSelect T="int?"
+                                   Label="Departamento"
                                    @bind-Value="selectedDepartamentoId"
                                    Variant="Variant.Outlined">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
@@ -179,8 +203,8 @@
                     </MudItem>
 
                     <MudItem xs="12" md="6">
-                        <MudSelect T="int?" 
-                                   Label="Municipio" 
+                        <MudSelect T="int?"
+                                   Label="Municipio"
                                    @bind-Value="respuestaEncuesta.IdMunicipio"
                                    Variant="Variant.Outlined"
                                    Disabled="@(!selectedDepartamentoId.HasValue)">
@@ -216,19 +240,17 @@
                 }
                 else
                 {
-                    
-                        int numeroVisualPregunta = 1;
-                    
                     @foreach (var pregunta in preguntas)
                     {
-                        // Solo mostrar si no está en la lista de preguntas ocultas
+                        // Solo mostrar si no está en la lista de preguntas ocultas y si la encuesta no ha finalizado
                         if (!preguntasOcultas.Contains(pregunta.IdPregunta) && !encuestaFinalizada)
                         {
                             <MudCard Class="mb-4">
                                 <MudCardContent>
                                     <MudText Typo="Typo.h6" Class="mb-3">
-                                        @numeroVisualPregunta. @pregunta.TextoPregunta
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                        
+                                        @pregunta.TextoPregunta
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">
                                             @pregunta.IdTipoPreguntaNavigation?.NombreTipoPregunta
                                         </MudChip>
                                     </MudText>
@@ -236,7 +258,6 @@
                                     @RenderizarPregunta(pregunta)
                                 </MudCardContent>
                             </MudCard>
-                            numeroVisualPregunta++;
                         }
                     }
 
@@ -308,9 +329,6 @@
     private List<Nacionalidad> nacionalidades = new();
     private List<Departamento> departamentos = new();
     private List<Municipio> municipios = new();
-    private List<TipoPublicidad> tiposPublicidad = new();
-    private List<TiposCompra> tiposCompra = new();
-    private List<MotivoVisita> motivosVisita = new();
 
     // Respuestas
     private Dictionary<int, string> respuestasTexto = new();
@@ -319,7 +337,7 @@
     private Dictionary<int, int?> respuestasNumericas = new();
     private Dictionary<int, DateTime?> respuestasFechas = new();
 
-    // *** NUEVAS VARIABLES PARA LÓGICA CONDICIONAL ***
+    // Lógica Condicional
     private HashSet<int> preguntasOcultas = new();
     private Dictionary<int, OpcionRespuestaCondicion> condicionesPorOpcion = new();
     private bool encuestaFinalizada = false;
@@ -356,7 +374,10 @@
         if (IdEncuesta.HasValue)
         {
             var enc = await encuestaServices.GetByIdAsync(IdEncuesta.Value);
-            await SeleccionarEncuesta(enc);
+            if (enc != null)
+            {
+                await SeleccionarEncuesta(enc);
+            }
         }
         else
         {
@@ -428,11 +449,14 @@
         try
         {
             preguntas = await preguntaServices.GetByEncuestaAsync(encuesta!.IdEncuesta);
-            
-            // *** ORDENAR POR OrdenPregunta ***
-            preguntas = preguntas.OrderBy(p => p.OrdenPregunta ?? int.MaxValue).ThenBy(p => p.IdPregunta).ToList();
 
-            // *** CARGAR CONDICIONES DE TODAS LAS OPCIONES ***
+            // Ordenar por OrdenPregunta
+            preguntas = preguntas
+                .OrderBy(p => p.OrdenPregunta ?? int.MaxValue)
+                .ThenBy(p => p.IdPregunta)
+                .ToList();
+
+            // Cargar condiciones de todas las opciones
             foreach (var pregunta in preguntas)
             {
                 var condiciones = await condicionService.GetByPreguntaAsync(pregunta.IdPregunta);
@@ -458,7 +482,7 @@
                 else if (tipoPregunta == "Opción Múltiple")
                 {
                     respuestasMultiples[pregunta.IdPregunta] = new Dictionary<int, bool>();
-                    foreach (var opcion in pregunta.OpcionRespuesta)
+                    foreach (var opcion in pregunta.OpcionRespuesta.Where(o => o.Activa == true))
                     {
                         respuestasMultiples[pregunta.IdPregunta][opcion.IdOpcionRespuesta] = false;
                     }
@@ -484,49 +508,104 @@
         }
     }
 
-    // *** NUEVO MÉTODO PARA MANEJAR CAMBIO DE OPCIÓN ***
-    private void OnOpcionChanged(int idPregunta, int? idOpcionSeleccionada)
+    // *** MÉTODO MEJORADO PARA EVALUAR TODA LA LÓGICA CONDICIONAL ***
+    private void EvaluarLogicaCondicional()
     {
-        if (!idOpcionSeleccionada.HasValue) return;
-
-        // Actualizar la respuesta
-        respuestasOpcion[idPregunta] = idOpcionSeleccionada;
-
-        // Limpiar estado anterior
+        // Reiniciar estado
         preguntasOcultas.Clear();
         encuestaFinalizada = false;
 
-        // Obtener la condición de esta opción
-        if (condicionesPorOpcion.TryGetValue(idOpcionSeleccionada.Value, out var condicion))
+        // Recorrer preguntas en orden
+        for (int i = 0; i < preguntas.Count; i++)
+        {
+            var preguntaActual = preguntas[i];
+
+            // Si esta pregunta ya está oculta, continuar
+            if (preguntasOcultas.Contains(preguntaActual.IdPregunta))
+                continue;
+
+            // Si ya finalizó la encuesta, ocultar el resto
+            if (encuestaFinalizada)
+            {
+                preguntasOcultas.Add(preguntaActual.IdPregunta);
+                continue;
+            }
+
+            var tipoPregunta = preguntaActual.IdTipoPreguntaNavigation?.NombreTipoPregunta;
+
+            // Verificar si el usuario respondió esta pregunta (Opción Única o Sí/No)
+            if ((tipoPregunta == "Opción Única" || tipoPregunta == "Sí/No") &&
+                respuestasOpcion.TryGetValue(preguntaActual.IdPregunta, out var idOpcionSeleccionada)
+                && idOpcionSeleccionada.HasValue)
+            {
+                AplicarCondicion(preguntaActual.IdPregunta, idOpcionSeleccionada.Value, i);
+            }
+            // Verificar si es Opción Múltiple
+            else if (tipoPregunta == "Opción Múltiple" &&
+                     respuestasMultiples.TryGetValue(preguntaActual.IdPregunta, out var opcionesMultiples))
+            {
+                // Aplicar la condición de la primera opción seleccionada que tenga condición
+                var primeraOpcionConCondicion = opcionesMultiples
+                    .Where(kvp => kvp.Value && condicionesPorOpcion.ContainsKey(kvp.Key))
+                    .Select(kvp => kvp.Key)
+                    .FirstOrDefault();
+
+                if (primeraOpcionConCondicion != 0)
+                {
+                    AplicarCondicion(preguntaActual.IdPregunta, primeraOpcionConCondicion, i);
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private void AplicarCondicion(int idPregunta, int idOpcion, int indicePreguntaActual)
+    {
+        // Verificar si esta opción tiene una condición
+        if (condicionesPorOpcion.TryGetValue(idOpcion, out var condicion))
         {
             if (condicion.TipoAccion == "SALTAR_A" && condicion.IdPreguntaDestino.HasValue)
             {
-                // Ocultar todas las preguntas entre la actual y la destino
-                var preguntaActualIndex = preguntas.FindIndex(p => p.IdPregunta == idPregunta);
-                var preguntaDestinoIndex = preguntas.FindIndex(p => p.IdPregunta == condicion.IdPreguntaDestino.Value);
-
-                if (preguntaDestinoIndex > preguntaActualIndex)
+                // Ocultar todas las preguntas hasta la destino (sin incluirla)
+                for (int j = indicePreguntaActual + 1; j < preguntas.Count; j++)
                 {
-                    for (int i = preguntaActualIndex + 1; i < preguntaDestinoIndex; i++)
-                    {
-                        preguntasOcultas.Add(preguntas[i].IdPregunta);
-                    }
+                    if (preguntas[j].IdPregunta == condicion.IdPreguntaDestino.Value)
+                        break;
+
+                    preguntasOcultas.Add(preguntas[j].IdPregunta);
                 }
             }
             else if (condicion.TipoAccion == "FINALIZAR")
             {
-                // Ocultar todas las preguntas siguientes y marcar encuesta como finalizada
-                var preguntaActualIndex = preguntas.FindIndex(p => p.IdPregunta == idPregunta);
-                for (int i = preguntaActualIndex + 1; i < preguntas.Count; i++)
+                // Ocultar todas las preguntas siguientes
+                for (int j = indicePreguntaActual + 1; j < preguntas.Count; j++)
                 {
-                    preguntasOcultas.Add(preguntas[i].IdPregunta);
+                    preguntasOcultas.Add(preguntas[j].IdPregunta);
                 }
                 encuestaFinalizada = true;
             }
-            // Si es MOSTRAR_SIGUIENTE, no hace nada especial (continúa normal)
+            // Si es MOSTRAR_SIGUIENTE, no hace nada (flujo normal)
         }
+    }
 
-        StateHasChanged();
+    // *** MÉTODO PARA MANEJAR CAMBIO DE OPCIÓN ÚNICA/SÍ-NO ***
+    private void OnOpcionChanged(int idPregunta, int? idOpcionSeleccionada)
+    {
+        // Actualizar la respuesta
+        respuestasOpcion[idPregunta] = idOpcionSeleccionada;
+
+        // Re-evaluar toda la lógica desde el inicio
+        EvaluarLogicaCondicional();
+    }
+
+    // *** MÉTODO PARA MANEJAR CAMBIO EN OPCIÓN MÚLTIPLE ***
+    private void OnOpcionMultipleChanged(int idPregunta, int idOpcion, bool seleccionado)
+    {
+        respuestasMultiples[idPregunta][idOpcion] = seleccionado;
+
+        // Re-evaluar toda la lógica
+        EvaluarLogicaCondicional();
     }
 
     private RenderFragment RenderizarPregunta(Pregunta pregunta) => __builder =>
@@ -541,9 +620,23 @@
                           Lines="5"
                           Required="true" />
         }
-        else if (tipoPregunta == "Opción Única" || tipoPregunta == "Sí/No")
+        else if (tipoPregunta == "Opción Única")
         {
-            <MudRadioGroup T="int?" 
+            <MudRadioGroup T="int?"
+                           Value="@respuestasOpcion[pregunta.IdPregunta]"
+                           ValueChanged="@(valor => OnOpcionChanged(pregunta.IdPregunta, valor))"
+                           Required="true">
+                @foreach (var opcion in pregunta.OpcionRespuesta.Where(o => o.Activa == true))
+                {
+                    <MudRadio T="int?" Value="@((int?)opcion.IdOpcionRespuesta)" Color="Color.Primary">
+                        @opcion.TextoOpcion
+                    </MudRadio>
+                }
+            </MudRadioGroup>
+        }
+        else if (tipoPregunta == "Sí/No")
+        {
+            <MudRadioGroup T="int?"
                            Value="@respuestasOpcion[pregunta.IdPregunta]"
                            ValueChanged="@(valor => OnOpcionChanged(pregunta.IdPregunta, valor))"
                            Required="true">
@@ -559,7 +652,9 @@
         {
             @foreach (var opcion in pregunta.OpcionRespuesta.Where(o => o.Activa == true))
             {
-                <MudCheckBox @bind-Value="respuestasMultiples[pregunta.IdPregunta][opcion.IdOpcionRespuesta]"
+                <MudCheckBox T="bool"
+                             Value="@respuestasMultiples[pregunta.IdPregunta][opcion.IdOpcionRespuesta]"
+                             ValueChanged="@((bool valor) => OnOpcionMultipleChanged(pregunta.IdPregunta, opcion.IdOpcionRespuesta, valor))"
                              Color="Color.Primary">
                     @opcion.TextoOpcion
                 </MudCheckBox>
@@ -568,25 +663,24 @@
         }
         else if (tipoPregunta == "Escala Numérica")
         {
-            var valorActual = respuestasNumericas.ContainsKey(pregunta.IdPregunta) && respuestasNumericas[pregunta.IdPregunta].HasValue 
-                ? respuestasNumericas[pregunta.IdPregunta].Value 
+            var valorActual = respuestasNumericas.ContainsKey(pregunta.IdPregunta) && respuestasNumericas[pregunta.IdPregunta].HasValue
+                ? respuestasNumericas[pregunta.IdPregunta].Value
                 : 1;
 
             <div class="mb-3">
-                <MudSlider T="int"
-                           Value="@valorActual"
-                           ValueChanged="@(nuevoValor => respuestasNumericas[pregunta.IdPregunta] = nuevoValor)"
-                           Min="1"
-                           Max="5"
-                           Step="1"
-                           Color="Color.Primary"
-                           Variant="Variant.Filled" />
-                
-                <MudText Typo="Typo.body2" Class="mt-2" Align="Align.Center">
-                    <MudChip T="string" Color="Color.Primary" Size="Size.Large">
-                        <strong>Calificación: @valorActual de 5</strong>
-                    </MudChip>
-                </MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">Seleccione su calificación:</MudText>
+                <div class="d-flex gap-2 flex-wrap">
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                        var numero = i;
+                        <MudButton Variant="@(valorActual == numero ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   OnClick="@(() => respuestasNumericas[pregunta.IdPregunta] = numero)">
+                            @numero
+                        </MudButton>
+                    }
+                </div>
             </div>
         }
         else if (tipoPregunta == "Fecha")
@@ -606,8 +700,22 @@
         preguntas.Clear();
         respuestaEncuesta = new();
         errorMessage = "";
+
+        // Limpiar lógica condicional
         preguntasOcultas.Clear();
+        condicionesPorOpcion.Clear();
         encuestaFinalizada = false;
+
+        // Limpiar todas las respuestas
+        respuestasTexto.Clear();
+        respuestasOpcion.Clear();
+        respuestasMultiples.Clear();
+        respuestasNumericas.Clear();
+        respuestasFechas.Clear();
+
+        // Limpiar datos de ubicación
+        selectedDepartamentoId = null;
+        municipios.Clear();
     }
 
     private async Task HandleSubmit()
@@ -625,7 +733,7 @@
             return;
         }
 
-        // *** VALIDAR SOLO PREGUNTAS VISIBLES ***
+        // Validar solo preguntas visibles
         foreach (var pregunta in preguntas.Where(p => !preguntasOcultas.Contains(p.IdPregunta)))
         {
             var tipoPregunta = pregunta.IdTipoPreguntaNavigation?.NombreTipoPregunta;
@@ -650,6 +758,11 @@
                 errorMessage = $"Por favor califique: {pregunta.TextoPregunta}";
                 return;
             }
+            else if (tipoPregunta == "Fecha" && !respuestasFechas[pregunta.IdPregunta].HasValue)
+            {
+                errorMessage = $"Por favor seleccione una fecha para: {pregunta.TextoPregunta}";
+                return;
+            }
         }
 
         isSubmitting = true;
@@ -660,7 +773,7 @@
             // 1. Guardar RespuestaEncuesta
             var idRespuesta = await respuestaEncuestaServices.AddAsync(respuestaEncuesta);
 
-            // 2. *** GUARDAR SOLO RESPUESTAS DE PREGUNTAS VISIBLES ***
+            // 2. Guardar solo respuestas de preguntas visibles
             foreach (var pregunta in preguntas.Where(p => !preguntasOcultas.Contains(p.IdPregunta)))
             {
                 var tipoPregunta = pregunta.IdTipoPreguntaNavigation?.NombreTipoPregunta;

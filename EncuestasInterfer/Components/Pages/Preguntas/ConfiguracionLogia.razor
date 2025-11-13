@@ -110,7 +110,7 @@
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
-                           OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta"))">
+                           OnClick="@(() => NavigationManager.NavigateTo($"/Encuesta/detalle/{pregunta?.IdEncuesta}"))">
                     Regresar
                 </MudButton>
 
@@ -281,7 +281,7 @@
             }
 
             Snackbar.Add("Configuración guardada correctamente", Severity.Success);
-            NavigationManager.NavigateTo($"/Preguntas?idEncuesta={pregunta.IdEncuesta}");
+            NavigationManager.NavigateTo($"/Encuesta/detalle/{pregunta.IdEncuesta}");
         }
         catch (Exception ex)
         {

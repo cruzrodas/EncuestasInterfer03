@@ -137,10 +137,10 @@
                             }
                             else if (tipoPregunta == "Escala Numérica")
                             {
-                                <MudText Typo="Typo.body1" Color="Color.Primary">
-                                    <strong>Calificación:</strong> @detalle.ValorNumerico / 10
+                                <MudText Typo="Typo.body1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" />
+                                    <strong>@detalle.ValorNumerico</strong> / 5
                                 </MudText>
-                                <MudRating ReadOnly="true" SelectedValue="@(detalle.ValorNumerico ?? 0)" MaxValue="10" Size="Size.Small" Color="Color.Warning" />
                             }
                             else if (tipoPregunta == "Fecha")
                             {

@@ -1,0 +1,1 @@
+Scaffold-DbContext -Force "Server=SoporteTecnico\SQLEXPRESS;Database=INTERFER-ENCUESTAS;User Id=sa;Password=T3cnico2024*;TrustServerCertificate=true;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models -Context EncuestaFeriaContext -NoPluralize
