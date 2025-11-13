@@ -1,0 +1,296 @@
+﻿@page "/Preguntas/configurar-logica/{IdPregunta:int}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.PreguntasServices
+@using EncuestasInterfer.Services.OpcionRespuestaCondicionService
+@using MudBlazor
+
+@inject IPreguntasServices preguntaServices
+@inject IOpcionRespuestaCondicionService condicionService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">Configurar Lógica Condicional</h3>
+
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <MudProgressCircular Indeterminate="true" />
+            <MudText>Cargando...</MudText>
+        </div>
+    }
+    else if (pregunta == null)
+    {
+        <MudAlert Severity="Severity.Error">No se encontró la pregunta.</MudAlert>
+    }
+    else
+    {
+        <MudPaper Elevation="3" Class="pa-4">
+            <!-- Información de la Pregunta -->
+            <MudText Typo="Typo.h5" Class="mb-3">@pregunta.TextoPregunta</MudText>
+            <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="mb-4">
+                @pregunta.IdTipoPreguntaNavigation?.NombreTipoPregunta
+            </MudChip>
+
+            <MudDivider Class="mb-4" />
+
+            <!-- Configuración de Condiciones por Opción -->
+            @if (pregunta.OpcionRespuesta != null && pregunta.OpcionRespuesta.Any())
+            {
+                <MudText Typo="Typo.h6" Class="mb-3">Configurar Acciones por Opción de Respuesta</MudText>
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Configura qué sucede cuando el usuario selecciona cada opción
+                </MudText>
+
+                @foreach (var opcion in pregunta.OpcionRespuesta.Where(o => o.Activa == true))
+                {
+                    <MudCard Class="mb-3">
+                        <MudCardContent>
+                            <MudText Typo="Typo.subtitle1" Class="mb-3">
+                                <strong>Opción:</strong> @opcion.TextoOpcion
+                            </MudText>
+
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect T="string"
+                                               Label="Acción"
+                                               Value="@GetTipoAccion(opcion.IdOpcionRespuesta)"
+                                               ValueChanged="@(valor => OnTipoAccionChanged(opcion.IdOpcionRespuesta, valor))"
+                                               Variant="Variant.Outlined"
+                                               HelperText="¿Qué debe suceder al seleccionar esta opción?">
+                                        <MudSelectItem T="string" Value="@("MOSTRAR_SIGUIENTE")">
+                                            Continuar a la siguiente pregunta
+                                        </MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("SALTAR_A")">
+                                            Saltar a una pregunta específica
+                                        </MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("FINALIZAR")">
+                                            Finalizar la encuesta
+                                        </MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+
+                                <MudItem xs="12" md="6">
+                                    @if (GetTipoAccion(opcion.IdOpcionRespuesta) == "SALTAR_A")
+                                    {
+                                        <MudSelect T="int?"
+                                                   Label="Pregunta destino"
+                                                   Value="@GetPreguntaDestino(opcion.IdOpcionRespuesta)"
+                                                   ValueChanged="@(valor => OnPreguntaDestinoChanged(opcion.IdOpcionRespuesta, valor))"
+                                                   Variant="Variant.Outlined"
+                                                   Required="true"
+                                                   HelperText="Selecciona la pregunta a la que saltará">
+                                            <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
+                                            @foreach (var p in preguntasDisponibles.Where(p => p.IdPregunta != pregunta.IdPregunta))
+                                            {
+                                                <MudSelectItem T="int?" Value="@p.IdPregunta">
+                                                    @($"{p.OrdenPregunta}. {(p.TextoPregunta?.Length > 50 ? p.TextoPregunta.Substring(0, 50) + "..." : p.TextoPregunta)}")
+                                                </MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    Esta pregunta no tiene opciones de respuesta configuradas.
+                    La lógica condicional solo aplica para preguntas con opciones (Opción Única, Opción Múltiple, Sí/No).
+                </MudAlert>
+            }
+
+            <!-- Botones de Acción -->
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="GuardarConfiguracion"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Guardar Configuración</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </MudPaper>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public int IdPregunta { get; set; }
+
+    private Pregunta? pregunta;
+    private List<Pregunta> preguntasDisponibles = new();
+    private List<OpcionRespuestaCondicion> condiciones = new();
+    private Dictionary<int, OpcionRespuestaCondicion> condicionesPorOpcion = new();
+
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Cargar pregunta con sus opciones
+            pregunta = await preguntaServices.GetByIdWithOptionsAsync(IdPregunta);
+
+            if (pregunta != null && pregunta.IdEncuesta.HasValue)
+            {
+                // Cargar todas las preguntas de la encuesta para el selector
+                preguntasDisponibles = await preguntaServices.GetByEncuestaAsync(pregunta.IdEncuesta.Value);
+                preguntasDisponibles = preguntasDisponibles.OrderBy(p => p.OrdenPregunta).ToList();
+
+                // Cargar condiciones existentes
+                condiciones = await condicionService.GetByPreguntaAsync(IdPregunta);
+
+                // Inicializar diccionario de condiciones
+                foreach (var opcion in pregunta.OpcionRespuesta.Where(o => o.Activa == true))
+                {
+                    var condicionExistente = condiciones.FirstOrDefault(c => c.IdOpcionRespuesta == opcion.IdOpcionRespuesta);
+
+                    if (condicionExistente != null)
+                    {
+                        condicionesPorOpcion[opcion.IdOpcionRespuesta] = condicionExistente;
+                    }
+                    else
+                    {
+                        condicionesPorOpcion[opcion.IdOpcionRespuesta] = new OpcionRespuestaCondicion
+                        {
+                            IdOpcionRespuesta = opcion.IdOpcionRespuesta,
+                            TipoAccion = "MOSTRAR_SIGUIENTE",
+                            Activa = true
+                        };
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Métodos helper para obtener valores
+    private string GetTipoAccion(int idOpcionRespuesta)
+    {
+        if (condicionesPorOpcion.TryGetValue(idOpcionRespuesta, out var condicion))
+        {
+            return condicion.TipoAccion ?? "MOSTRAR_SIGUIENTE";
+        }
+        return "MOSTRAR_SIGUIENTE";
+    }
+
+    private int? GetPreguntaDestino(int idOpcionRespuesta)
+    {
+        if (condicionesPorOpcion.TryGetValue(idOpcionRespuesta, out var condicion))
+        {
+            return condicion.IdPreguntaDestino;
+        }
+        return null;
+    }
+
+    // Métodos para manejar cambios
+    private void OnTipoAccionChanged(int idOpcionRespuesta, string nuevoTipo)
+    {
+        if (condicionesPorOpcion.ContainsKey(idOpcionRespuesta))
+        {
+            condicionesPorOpcion[idOpcionRespuesta].TipoAccion = nuevoTipo;
+
+            // Si no es SALTAR_A, limpiar el destino
+            if (nuevoTipo != "SALTAR_A")
+            {
+                condicionesPorOpcion[idOpcionRespuesta].IdPreguntaDestino = null;
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private void OnPreguntaDestinoChanged(int idOpcionRespuesta, int? idPreguntaDestino)
+    {
+        if (condicionesPorOpcion.ContainsKey(idOpcionRespuesta))
+        {
+            condicionesPorOpcion[idOpcionRespuesta].IdPreguntaDestino = idPreguntaDestino;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GuardarConfiguracion()
+    {
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // 1. Actualizar orden de la pregunta
+            await preguntaServices.UpdateAsync(pregunta!);
+
+            // 2. Guardar/actualizar condiciones de cada opción
+            foreach (var kvp in condicionesPorOpcion)
+            {
+                var condicion = kvp.Value;
+
+                // Validar que si es SALTAR_A tenga destino
+                if (condicion.TipoAccion == "SALTAR_A" && !condicion.IdPreguntaDestino.HasValue)
+                {
+                    Snackbar.Add("Debe seleccionar una pregunta destino para las opciones con acción 'Saltar a'", Severity.Warning);
+                    isSubmitting = false;
+                    return;
+                }
+
+                // Si es MOSTRAR_SIGUIENTE o FINALIZAR, limpiar destino
+                if (condicion.TipoAccion != "SALTAR_A")
+                {
+                    condicion.IdPreguntaDestino = null;
+                }
+
+                await condicionService.AddUpdateAsync(condicion);
+            }
+
+            Snackbar.Add("Configuración guardada correctamente", Severity.Success);
+            NavigationManager.NavigateTo($"/Preguntas?idEncuesta={pregunta.IdEncuesta}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

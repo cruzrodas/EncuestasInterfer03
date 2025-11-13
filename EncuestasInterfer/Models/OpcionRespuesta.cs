@@ -17,6 +17,8 @@ public partial class OpcionRespuesta
 
     public virtual Pregunta? IdPreguntaNavigation { get; set; }
 
+    public virtual ICollection<OpcionRespuestaCondicion> OpcionRespuestaCondicion { get; set; } = new List<OpcionRespuestaCondicion>();
+
     public virtual ICollection<RespuestaDetalle> RespuestaDetalle { get; set; } = new List<RespuestaDetalle>();
 
     public virtual ICollection<RespuestaMultiple> RespuestaMultiple { get; set; } = new List<RespuestaMultiple>();

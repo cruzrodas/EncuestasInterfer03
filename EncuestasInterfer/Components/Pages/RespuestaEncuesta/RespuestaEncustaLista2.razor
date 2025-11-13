@@ -1,0 +1,412 @@
+﻿@page "/VerRespuestasEncuesta"
+@page "/VerRespuestasEncuesta/{IdEncuesta:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.EncuestasServices
+@using EncuestasInterfer.Services.RespuestaEncuestaService
+@using MudBlazor
+
+@inject IEncuestaServices encuestaServices
+@inject IRespuestaEncuestaService respuestaEncuestaService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    @if (!encuestaSeleccionada)
+    {
+        <!-- Selector de Encuesta -->
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.h4" Class="mb-4 text-center">Seleccione una Encuesta para Ver Respuestas</MudText>
+
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <MudProgressCircular Indeterminate="true" />
+                    <MudText>Cargando encuestas...</MudText>
+                </div>
+            }
+            else if (!encuestas.Any())
+            {
+                <MudAlert Severity="Severity.Info">
+                    No hay encuestas disponibles.
+                </MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var enc in encuestas)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCard>
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h6">@enc.Titulo</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetEstadoColor(enc)">
+                                            @GetEstadoTexto(enc)
+                                        </MudChip>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudText>@enc.Descripcion</MudText>
+                                    <MudText Typo="Typo.caption" Class="mt-2">
+                                        <strong>Inicio:</strong> @enc.FechaInicio?.ToString("dd/MM/yyyy")
+                                    </MudText>
+                                    <MudText Typo="Typo.caption">
+                                        <strong>Fin:</strong> @enc.FechaFin?.ToString("dd/MM/yyyy")
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mt-2">
+                                        <strong>Respuestas:</strong> @GetCantidadRespuestas(enc.IdEncuesta)
+                                    </MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(() => SeleccionarEncuesta(enc))"
+                                               Disabled="@(GetCantidadRespuestas(enc.IdEncuesta) == 0)">
+                                        Ver Respuestas
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <!-- Lista de Respuestas -->
+        <MudPaper Elevation="3" Class="pa-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <MudText Typo="Typo.h4">@encuesta?.Titulo</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-1">@encuesta?.Descripcion</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="RegresarASelector">
+                    Regresar
+                </MudButton>
+            </div>
+
+            <MudDivider Class="mb-4" />
+
+            <!-- Campo de búsqueda -->
+            <MudGrid Class="mb-3">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Buscar por Identificacion"
+                                  Variant="Variant.Outlined"
+                                  @bind-Value="searchTerm"
+                                  Immediate="true"
+                                  DebounceInterval="300"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  AdornmentColor="Color.Primary"
+                                  OnDebounceIntervalElapsed="Search" />
+                </MudItem>
+            </MudGrid>
+
+            @if (isLoadingRespuestas)
+            {
+                <div class="text-center">
+                    <MudProgressCircular Indeterminate="true" />
+                    <MudText>Cargando respuestas...</MudText>
+                </div>
+            }
+            else if (paginatedResult == null || paginatedResult.Items == null || !paginatedResult.Items.Any())
+            {
+                <MudAlert Severity="Severity.Info">No hay respuestas para esta encuesta.</MudAlert>
+            }
+            else
+            {
+                <MudTable T="RespuestaEncuesta"
+                          ServerData="ServerReload"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="true"
+                          Loading="@isLoadingRespuestas"
+                          RowClass="cursor-pointer"
+                          Class="printable-table">
+
+                    <HeaderContent>
+                        <MudTh>ID</MudTh>
+                        <MudTh>Tipo Doc</MudTh>
+                        <MudTh>Identificacion</MudTh>
+                        <MudTh>Edad</MudTh>
+                        <MudTh>Genero</MudTh>
+                        <MudTh>Nacionalidad</MudTh>
+                        <MudTh>Departamento</MudTh>
+                        <MudTh>Municipio</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh Class="acciones">Acciones</MudTh>
+                    </HeaderContent>
+
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">@context.IdRespuestaEncuesta</MudTd>
+                        <MudTd DataLabel="Tipo Doc">@GetTipoDocumento(context)</MudTd>
+                        <MudTd DataLabel="Identificacion">@context.NumeroIdentificacion</MudTd>
+                        <MudTd DataLabel="Edad">@context.EdadActual</MudTd>
+                        <MudTd DataLabel="Genero">@GetGenero(context)</MudTd>
+                        <MudTd DataLabel="Nacionalidad">@GetNacionalidad(context)</MudTd>
+                        <MudTd DataLabel="Departamento">@GetDepartamento(context)</MudTd>
+                        <MudTd DataLabel="Municipio">@GetMunicipio(context)</MudTd>
+                        <MudTd DataLabel="Fecha">@GetFecha(context)</MudTd>
+                        <MudTd DataLabel="Acciones" Class="acciones">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(() => VerDetalle(context.IdRespuestaEncuesta))">
+                                Ver Detalle
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager RowsPerPageString="Respuestas por pagina"
+                                       InfoFormat="@infoFormat"
+                                       PageSizeOptions="@pageSizeOptions" />
+                    </PagerContent>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdEncuesta { get; set; }
+
+    // Estado
+    private bool encuestaSeleccionada = false;
+    private bool isLoading = true;
+    private bool isLoadingRespuestas = false;
+    private string searchTerm = "";
+    private string infoFormat = "{first_item}-{last_item} de {all_items}";
+    private const int PageSize = 20;
+    private int[] pageSizeOptions = new int[] { 10, 20, 25, 30, 40 };
+
+    // Datos
+    private List<Encuesta> encuestas = new();
+    private Encuesta? encuesta;
+    private MPaginatedResult<RespuestaEncuesta>? paginatedResult;
+    private Dictionary<int, int> conteoRespuestas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdEncuesta.HasValue)
+        {
+            try
+            {
+                var enc = await encuestaServices.GetByIdAsync(IdEncuesta.Value);
+                await SeleccionarEncuesta(enc);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar la encuesta: {ex.Message}", Severity.Error);
+                await LoadEncuestas();
+            }
+        }
+        else
+        {
+            await LoadEncuestas();
+        }
+    }
+
+    private async Task LoadEncuestas()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            encuestas = await encuestaServices.GetAllAsync();
+
+            // Cargar conteo de respuestas para cada encuesta
+            foreach (var enc in encuestas)
+            {
+                var result = await respuestaEncuestaService.GetPaginatedAsync(1, 1, "", enc.IdEncuesta);
+                conteoRespuestas[enc.IdEncuesta] = result.TotalCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar encuestas: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SeleccionarEncuesta(Encuesta enc)
+    {
+        encuesta = enc;
+        encuestaSeleccionada = true;
+        await LoadRespuestas(1);
+    }
+
+    private async Task LoadRespuestas(int page)
+    {
+        isLoadingRespuestas = true;
+        StateHasChanged();
+
+        try
+        {
+            paginatedResult = await respuestaEncuestaService.GetPaginatedAsync(
+                page,
+                PageSize,
+                searchTerm,
+                encuesta!.IdEncuesta);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar respuestas: {ex.Message}", Severity.Error);
+            paginatedResult = new MPaginatedResult<RespuestaEncuesta>
+            {
+                Items = new List<RespuestaEncuesta>(),
+                TotalCount = 0,
+                PageNumber = page,
+                PageSize = PageSize
+            };
+        }
+        finally
+        {
+            isLoadingRespuestas = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<RespuestaEncuesta>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        isLoadingRespuestas = true;
+        try
+        {
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            paginatedResult = await respuestaEncuestaService.GetPaginatedAsync(
+                page,
+                pageSize,
+                searchTerm,
+                encuesta!.IdEncuesta);
+
+            return new TableData<RespuestaEncuesta>
+            {
+                Items = paginatedResult?.Items ?? new List<RespuestaEncuesta>(),
+                TotalItems = paginatedResult?.TotalCount ?? 0
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en ServerReload: {ex.Message}");
+            return new TableData<RespuestaEncuesta>
+            {
+                Items = new List<RespuestaEncuesta>(),
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            isLoadingRespuestas = false;
+        }
+    }
+
+    private async Task Search()
+    {
+        await LoadRespuestas(1);
+    }
+
+    private void RegresarASelector()
+    {
+        encuestaSeleccionada = false;
+        encuesta = null;
+        paginatedResult = null;
+        searchTerm = "";
+    }
+
+    private void VerDetalle(int idRespuestaEncuesta)
+    {
+        NavigationManager.NavigateTo($"/RespuestasEncuesta/detalle/{idRespuestaEncuesta}");
+    }
+
+    // Métodos helper
+    private int GetCantidadRespuestas(int idEncuesta)
+    {
+        return conteoRespuestas.TryGetValue(idEncuesta, out var count) ? count : 0;
+    }
+
+    private Color GetEstadoColor(Encuesta enc)
+    {
+        var now = DateTime.Now;
+
+        if (enc.Activa == false)
+            return Color.Error;
+
+        if (!enc.FechaInicio.HasValue || !enc.FechaFin.HasValue)
+            return Color.Default;
+
+        if (now < enc.FechaInicio.Value)
+            return Color.Info;
+
+        if (now > enc.FechaFin.Value)
+            return Color.Warning;
+
+        return Color.Success;
+    }
+
+    private string GetEstadoTexto(Encuesta enc)
+    {
+        var now = DateTime.Now;
+
+        if (enc.Activa == false)
+            return "Inactiva";
+
+        if (!enc.FechaInicio.HasValue || !enc.FechaFin.HasValue)
+            return "Sin fechas";
+
+        if (now < enc.FechaInicio.Value)
+            return "Programada";
+
+        if (now > enc.FechaFin.Value)
+            return "Finalizada";
+
+        return "Activa";
+    }
+
+    private string GetTipoDocumento(RespuestaEncuesta respuesta)
+    {
+        return respuesta?.IdTipoDocuementoIdentificacionNavigation?.NombreIdentificacion ?? "";
+    }
+
+    private string GetGenero(RespuestaEncuesta respuesta)
+    {
+        return respuesta?.IdGeneroNavigation?.NombreGenero ?? "";
+    }
+
+    private string GetNacionalidad(RespuestaEncuesta respuesta)
+    {
+        return respuesta?.IdNacionalidadNavigation?.NombrePais ?? "";
+    }
+
+    private string GetDepartamento(RespuestaEncuesta respuesta)
+    {
+        return respuesta?.IdDepartamentoNavigation?.NombreDepartamento ?? "";
+    }
+
+    private string GetMunicipio(RespuestaEncuesta respuesta)
+    {
+        return respuesta?.IdMunicipioNavigation?.NombreMunicipio ?? "";
+    }
+
+    private string GetFecha(RespuestaEncuesta respuesta)
+    {
+        if (respuesta?.FechaRealizacion == null)
+            return "";
+
+        return respuesta.FechaRealizacion.Value.ToString("dd/MM/yyyy HH:mm");
+    }
+}

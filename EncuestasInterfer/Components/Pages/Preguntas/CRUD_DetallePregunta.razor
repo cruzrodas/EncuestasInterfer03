@@ -1,0 +1,371 @@
+﻿@page "/Pregunta/agregar"
+@page "/Pregunta/agregar/{IdPregunta:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.PreguntasServices
+@using EncuestasInterfer.Services.EncuestasServices
+@using EncuestasInterfer.Services.TipoPreguntaServices
+@using EncuestasInterfer.Services.OpcionRespuestaServices
+@using MudBlazor
+@using System.Web
+
+@inject IPreguntasServices preguntaServices
+@inject IEncuestaServices encuestaServices
+@inject ITipoPreguntaServices tipoPreguntaServices
+@inject IOpcionRespuestaServices opcionRespuestaServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdPregunta.HasValue ? "Editar Pregunta" : "Nueva Pregunta")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdPregunta.HasValue ? "Editar Pregunta" : "Agregar Nueva Pregunta")
+        </MudText>
+
+        <EditForm Model="pregunta" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="int?" Label="Encuesta" @bind-Value="pregunta.IdEncuesta"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Seleccione una encuesta"
+                               Disabled="@(IdPregunta.HasValue)">
+                        <MudSelectItem T="int?" Value="null">Seleccione una encuesta</MudSelectItem>
+                        @if (encuestas != null)
+                        {
+                            @foreach (var enc in encuestas)
+                            {
+                                <MudSelectItem T="int?" Value="@enc.IdEncuesta">@enc.Titulo</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?" Label="Tipo de Pregunta" @bind-Value="pregunta.IdTipoPregunta"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Seleccione un tipo de pregunta">
+                        <MudSelectItem T="int?" Value="null">Seleccione un tipo</MudSelectItem>
+                        @if (tiposPreguntas != null)
+                        {
+                            @foreach (var tipo in tiposPreguntas)
+                            {
+                                <MudSelectItem T="int?" Value="@tipo.IdTipoPregunta">
+                                    @tipo.NombreTipoPregunta
+                                    @if (!string.IsNullOrEmpty(tipo.Descripcion))
+                                    {
+                                        <span style="font-size: 0.8em; color: gray;"> - @tipo.Descripcion</span>
+                                    }
+                                </MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @if (IdPregunta.HasValue)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudSwitch @bind-Value="pregunta.Activa" Color="Color.Primary" Label="Pregunta Activa" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField Label="Texto de la Pregunta"
+                                  @bind-Value="pregunta.TextoPregunta"
+                                  For="@(() => pregunta.TextoPregunta)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El texto de la pregunta es requerido"
+                                  Lines="3"
+                                  MaxLength="500"
+                                  Counter="500"
+                                  Immediate="true" />
+                </MudItem>
+
+                @* Sección de Opciones de Respuesta *@
+                @if (TipoPreguntaRequiereOpciones())
+                {
+                    <MudItem xs="12">
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.h6" Class="mb-3">Opciones de Respuesta</MudText>
+
+                        @if (opciones.Any())
+                        {
+                            @foreach (var (opcion, index) in opciones.Select((o, i) => (o, i)))
+                            {
+                                <MudGrid Class="mb-2">
+                                    <MudItem xs="10">
+                                        <MudTextField Label="@($"Opción {index + 1}")"
+                                                      @bind-Value="opcion.TextoOpcion"
+                                                      Variant="Variant.Outlined"
+                                                      Required="true"
+                                                      MaxLength="255" />
+                                    </MudItem>
+                                    <MudItem xs="2">
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Error"
+                                                   StartIcon="@Icons.Material.Filled.Delete"
+                                                   OnClick="@(() => EliminarOpcion(index))"
+                                                   FullWidth="true">
+                                            Eliminar
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                        }
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AgregarOpcion"
+                                   Class="mt-2">
+                            Agregar Opción
+                        </MudButton>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@errorMessage</MudAlert>
+            }
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="Regresar">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdPregunta.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdPregunta { get; set; }
+    [SupplyParameterFromQuery] public int? idEncuesta { get; set; }
+
+    private Pregunta pregunta = new Pregunta();
+    private List<Encuesta> encuestas = new();
+    private List<TipoPregunta> tiposPreguntas = new();
+    private List<OpcionRespuesta> opciones = new();
+    private bool isSubmitting = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEncuestas();
+        await LoadTiposPreguntas();
+
+        if (IdPregunta.HasValue)
+        {
+            // Modo edición
+            try
+            {
+                pregunta = await preguntaServices.GetByIdWithOpcionesAsync(IdPregunta.Value);
+                opciones = pregunta.OpcionRespuesta.ToList();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar la pregunta: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/Pregunta");
+            }
+        }
+        else
+        {
+            // Modo creación
+            pregunta = new Pregunta();
+
+            // Si viene de una encuesta específica, pre-seleccionarla
+            if (idEncuesta.HasValue)
+            {
+                pregunta.IdEncuesta = idEncuesta.Value;
+            }
+        }
+    }
+
+    private async Task LoadEncuestas()
+    {
+        try
+        {
+            var todasEncuestas = await encuestaServices.GetAllAsync();
+            // Filtrar solo encuestas activas o en el futuro
+            encuestas = todasEncuestas
+                .Where(e => e.Activa == true && e.FechaFin >= DateTime.Now)
+                .OrderByDescending(e => e.FechaCreacion)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar encuestas: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadTiposPreguntas()
+    {
+        try
+        {
+            tiposPreguntas = await tipoPreguntaServices.GetActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar tipos de preguntas: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool TipoPreguntaRequiereOpciones()
+    {
+        if (!pregunta.IdTipoPregunta.HasValue)
+            return false;
+
+        var tipo = tiposPreguntas.FirstOrDefault(t => t.IdTipoPregunta == pregunta.IdTipoPregunta.Value);
+        return tipo?.RequiereOpciones == true;
+    }
+
+    private void AgregarOpcion()
+    {
+        opciones.Add(new OpcionRespuesta
+        {
+            IdPregunta = pregunta.IdPregunta,
+            TextoOpcion = "",
+            Activa = true
+        });
+    }
+
+    private void EliminarOpcion(int index)
+    {
+        if (index >= 0 && index < opciones.Count)
+        {
+            opciones.RemoveAt(index);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+
+        // Validaciones
+        if (!pregunta.IdEncuesta.HasValue)
+        {
+            errorMessage = "Debe seleccionar una encuesta";
+            return;
+        }
+
+        if (!pregunta.IdTipoPregunta.HasValue)
+        {
+            errorMessage = "Debe seleccionar un tipo de pregunta";
+            return;
+        }
+
+        if (TipoPreguntaRequiereOpciones() && !opciones.Any())
+        {
+            errorMessage = "Debe agregar al menos una opción de respuesta";
+            return;
+        }
+
+        if (TipoPreguntaRequiereOpciones() && opciones.Any(o => string.IsNullOrWhiteSpace(o.TextoOpcion)))
+        {
+            errorMessage = "Todas las opciones deben tener texto";
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Guardar la pregunta
+            var result = await preguntaServices.AddUpdateAsync(pregunta);
+
+            if (result)
+            {
+                // Si se guardó correctamente y hay opciones, guardarlas
+                if (TipoPreguntaRequiereOpciones() && opciones.Any())
+                {
+                    // Si es edición, primero desactivar las opciones existentes
+                    if (IdPregunta.HasValue)
+                    {
+                        await opcionRespuestaServices.DeleteByPreguntaAsync(pregunta.IdPregunta);
+                    }
+
+                    // Asignar el ID de la pregunta a todas las opciones
+                    foreach (var opcion in opciones)
+                    {
+                        opcion.IdPregunta = pregunta.IdPregunta;
+                    }
+
+                    // Guardar todas las opciones
+                    await opcionRespuestaServices.AddMultipleAsync(opciones);
+                }
+
+                var message = IdPregunta.HasValue ? "Pregunta actualizada correctamente" : "Pregunta creada correctamente";
+                Snackbar.Add(message, Severity.Success);
+
+                // Regresar a la lista de preguntas de la encuesta
+                if (pregunta.IdEncuesta.HasValue)
+                {
+                    NavigationManager.NavigateTo($"/Pregunta/{pregunta.IdEncuesta}");
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("/Pregunta");
+                }
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar la Pregunta", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Regresar()
+    {
+        if (pregunta.IdEncuesta.HasValue)
+        {
+            NavigationManager.NavigateTo($"/Pregunta/{pregunta.IdEncuesta}");
+        }
+        else if (idEncuesta.HasValue)
+        {
+            NavigationManager.NavigateTo($"/Pregunta/{idEncuesta}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/Pregunta");
+        }
+    }
+}
+

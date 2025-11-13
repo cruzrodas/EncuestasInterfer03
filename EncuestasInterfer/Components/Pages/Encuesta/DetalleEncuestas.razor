@@ -1,0 +1,206 @@
+﻿@page "/Encuesta/detalle/{IdEncuesta:int}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.EncuestasServices
+@using MudBlazor
+
+@inject IEncuestaServices encuestaServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    @if (isLoading)
+    {
+        <div class="spinner-container">
+            <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+        </div>
+    }
+    else if (encuesta == null)
+    {
+        <MudAlert Severity="Severity.Error">No se encontró la encuesta</MudAlert>
+    }
+    else
+    {
+        <MudPaper Elevation="3" Class="pa-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <MudText Typo="Typo.h4">@encuesta.Titulo</MudText>
+                @if (encuesta.Activa == true && encuesta.FechaInicio <= DateTime.Now && encuesta.FechaFin >= DateTime.Now)
+                {
+                    <MudChip T="string" Color="Color.Success">Activa</MudChip>
+                }
+                else if (encuesta.FechaFin < DateTime.Now)
+                {
+                    <MudChip T="string" Color="Color.Error">Finalizada</MudChip>
+                }
+                else if (encuesta.FechaInicio > DateTime.Now)
+                {
+                    <MudChip T="string"  Color="Color.Warning">Programada</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Default">Inactiva</MudChip>
+                }
+            </div>
+
+            <MudDivider Class="mb-4" />
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">ID:</MudText>
+                    <MudText>@encuesta.IdEncuesta</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">Fecha de Creación:</MudText>
+                    <MudText>@encuesta.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">Fecha de Inicio:</MudText>
+                    <MudText>@encuesta.FechaInicio?.ToString("dd/MM/yyyy")</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">Fecha de Fin:</MudText>
+                    <MudText>@encuesta.FechaFin?.ToString("dd/MM/yyyy")</MudText>
+                </MudItem>
+
+                @if (encuesta.FechaActualiacion.HasValue)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Última Actualización:</MudText>
+                        <MudText>@encuesta.FechaActualiacion?.ToString("dd/MM/yyyy HH:mm")</MudText>
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">Descripción:</MudText>
+                    <MudText>@(string.IsNullOrEmpty(encuesta.Descripcion) ? "Sin descripción" : encuesta.Descripcion)</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-3">Preguntas de la Encuesta</MudText>
+
+            @if (encuesta.Pregunta == null || !encuesta.Pregunta.Any())
+            {
+                <MudAlert Severity="Severity.Info">
+                    Esta encuesta aún no tiene preguntas asociadas.
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Class="ml-2"
+                               OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar?idEncuesta={IdEncuesta}"))">
+                        Agregar Pregunta
+                    </MudButton>
+                </MudAlert>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-3"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar?idEncuesta={IdEncuesta}"))">
+                    Agregar Pregunta
+                </MudButton>
+
+                <MudTable Items="@encuesta.Pregunta" Hover="true" Bordered="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Pregunta</MudTh>
+                        <MudTh>Tipo</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Pregunta">
+                            @if (context.TextoPregunta?.Length > 80)
+                            {
+                                @($"{context.TextoPregunta.Substring(0, 80)}...")
+                            }
+                            else
+                            {
+                                @context.TextoPregunta
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Tipo">@context.IdTipoPreguntaNavigation?.NombreTipoPregunta</MudTd>
+                        <MudTd DataLabel="Estado">
+                            @if (context.Activa == true)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">Activa</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">Inactiva</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning"
+                                       OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar/{context.IdPregunta}"))">
+                                Editar
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Settings"
+                                       Href="@($"/Preguntas/configurar-logica/{context.IdPregunta}")">
+                                Lógica
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+            <MudDivider Class="my-4" />
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/Encuesta"))">
+                    Regresar
+                </MudButton>
+
+                <div>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => NavigationManager.NavigateTo($"/Encuesta/agregar/{IdEncuesta}"))">
+                        Editar Encuesta
+                    </MudButton>
+                </div>
+            </div>
+        </MudPaper>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public int IdEncuesta { get; set; }
+
+    private Encuesta? encuesta;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEncuesta();
+    }
+
+    private async Task LoadEncuesta()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            encuesta = await encuestaServices.GetByIdWithPreguntasAsync(IdEncuesta);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar la encuesta: {ex.Message}", Severity.Error);
+            encuesta = null;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

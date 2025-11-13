@@ -1,0 +1,195 @@
+﻿@page "/Encuesta/agregar"
+@page "/Encuesta/agregar/{IdEncuesta:int?}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.EncuestasServices
+@using MudBlazor
+
+@inject IEncuestaServices encuestaServices
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">@(IdEncuesta.HasValue ? "Editar Encuesta" : "Nueva Encuesta")</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4 text-center" Align="Align.Center">
+            @(IdEncuesta.HasValue ? "Editar Encuesta" : "Agregar Nueva Encuesta")
+        </MudText>
+
+        <EditForm Model="encuesta" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField Label="Título de la Encuesta"
+                                  @bind-Value="encuesta.Titulo"
+                                  For="@(() => encuesta.Titulo)"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="El título es requerido"
+                                  MaxLength="250"
+                                  Counter="250"
+                                  Immediate="true" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField Label="Descripción"
+                                  @bind-Value="encuesta.Descripcion"
+                                  For="@(() => encuesta.Descripcion)"
+                                  Variant="Variant.Outlined"
+                                  Lines="5"
+                                  MaxLength="1000"
+                                  Counter="1000"
+                                  Immediate="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker Label="Fecha de Inicio"
+                                   @bind-Date="fechaInicio"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="La fecha de inicio es requerida"
+                                   DateFormat="dd/MM/yyyy"
+                                   Editable="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker Label="Fecha de Fin"
+                                   @bind-Date="fechaFin"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="La fecha de fin es requerida"
+                                   DateFormat="dd/MM/yyyy"
+                                   Editable="true"
+                                   MinDate="fechaInicio" />
+                </MudItem>
+
+                @if (IdEncuesta.HasValue)
+                {
+                    <MudItem xs="12">
+                        <MudSwitch @bind-Value="encuesta.Activa" Color="Color.Primary" Label="Encuesta Activa" />
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@errorMessage</MudAlert>
+            }
+
+            <div class="d-flex justify-content-between mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => NavigationManager.NavigateTo("/Encuesta"))">
+                    Regresar
+                </MudButton>
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Guardando...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@(IdEncuesta.HasValue ? "Actualizar" : "Guardar")</MudText>
+                    }
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdEncuesta { get; set; }
+
+    private Encuesta encuesta = new Encuesta();
+    private bool isSubmitting = false;
+    private string errorMessage = "";
+
+    private DateTime? fechaInicio;
+    private DateTime? fechaFin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdEncuesta.HasValue)
+        {
+            try
+            {
+                encuesta = await encuestaServices.GetByIdAsync(IdEncuesta.Value);
+                fechaInicio = encuesta.FechaInicio;
+                fechaFin = encuesta.FechaFin;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar la encuesta: {ex.Message}", Severity.Error);
+                NavigationManager.NavigateTo("/Encuesta");
+            }
+        }
+        else
+        {
+            encuesta = new Encuesta();
+            fechaInicio = DateTime.Now;
+            fechaFin = DateTime.Now.AddMonths(1);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+
+        // Validaciones
+        if (fechaInicio == null || fechaFin == null)
+        {
+            errorMessage = "Las fechas de inicio y fin son requeridas";
+            return;
+        }
+
+        if (fechaFin < fechaInicio)
+        {
+            errorMessage = "La fecha de fin debe ser posterior a la fecha de inicio";
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Asignar las fechas al modelo
+            encuesta.FechaInicio = fechaInicio.Value;
+            encuesta.FechaFin = fechaFin.Value;
+
+            var result = await encuestaServices.AddUpdateAsync(encuesta);
+
+            if (result)
+            {
+                var message = IdEncuesta.HasValue ? "Encuesta actualizada correctamente" : "Encuesta creada correctamente";
+                Snackbar.Add(message, Severity.Success);
+                NavigationManager.NavigateTo("/Encuesta");
+            }
+            else
+            {
+                Snackbar.Add("Error al guardar la Encuesta", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -21,13 +21,13 @@ public partial class EncuestaFeriaContext : DbContext
 
     public virtual DbSet<Genero> Genero { get; set; }
 
-    public virtual DbSet<MotivoVisita> MotivoVisita { get; set; }
-
     public virtual DbSet<Municipio> Municipio { get; set; }
 
     public virtual DbSet<Nacionalidad> Nacionalidad { get; set; }
 
     public virtual DbSet<OpcionRespuesta> OpcionRespuesta { get; set; }
+
+    public virtual DbSet<OpcionRespuestaCondicion> OpcionRespuestaCondicion { get; set; }
 
     public virtual DbSet<Pregunta> Pregunta { get; set; }
 
@@ -41,9 +41,7 @@ public partial class EncuestaFeriaContext : DbContext
 
     public virtual DbSet<TipoPregunta> TipoPregunta { get; set; }
 
-    public virtual DbSet<TipoPublicidad> TipoPublicidad { get; set; }
-
-    public virtual DbSet<TiposCompra> TiposCompra { get; set; }
+    public virtual DbSet<VwPreguntasConCondiciones> VwPreguntasConCondiciones { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { }
 
@@ -79,13 +77,6 @@ public partial class EncuestaFeriaContext : DbContext
             entity.Property(e => e.NombreGenero).HasMaxLength(50);
         });
 
-        modelBuilder.Entity<MotivoVisita>(entity =>
-        {
-            entity.HasKey(e => e.IdMotivoVisita);
-
-            entity.Property(e => e.NombreMotivo).HasMaxLength(200);
-        });
-
         modelBuilder.Entity<Municipio>(entity =>
         {
             entity.HasKey(e => e.IdMunicipio);
@@ -118,10 +109,34 @@ public partial class EncuestaFeriaContext : DbContext
                 .HasConstraintName("FK_OpcionRespuesta_Pregunta");
         });
 
+        modelBuilder.Entity<OpcionRespuestaCondicion>(entity =>
+        {
+            entity.HasKey(e => e.IdOpcionRespuestaCondicion).HasName("PK__OpcionRe__B81DD5AE9C26FE73");
+
+            entity.HasIndex(e => e.IdOpcionRespuesta, "IX_OpcionRespuestaCondicion_Opcion");
+
+            entity.Property(e => e.Activa).HasDefaultValue(true);
+            entity.Property(e => e.TipoAccion)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.IdOpcionRespuestaNavigation).WithMany(p => p.OpcionRespuestaCondicion)
+                .HasForeignKey(d => d.IdOpcionRespuesta)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OpcionRespuestaCondicion_OpcionRespuesta");
+
+            entity.HasOne(d => d.IdPreguntaDestinoNavigation).WithMany(p => p.OpcionRespuestaCondicion)
+                .HasForeignKey(d => d.IdPreguntaDestino)
+                .HasConstraintName("FK_OpcionRespuestaCondicion_PreguntaDestino");
+        });
+
         modelBuilder.Entity<Pregunta>(entity =>
         {
             entity.HasKey(e => e.IdPregunta);
 
+            entity.HasIndex(e => new { e.IdEncuesta, e.OrdenPregunta }, "IX_Pregunta_OrdenPregunta");
+
+            entity.Property(e => e.EsCondicional).HasDefaultValue(false);
             entity.Property(e => e.FechaCreacion).HasColumnType("datetime");
             entity.Property(e => e.TextoPregunta).HasMaxLength(500);
 
@@ -160,7 +175,6 @@ public partial class EncuestaFeriaContext : DbContext
         {
             entity.HasKey(e => e.IdRespuestaEncuesta);
 
-            entity.Property(e => e.Direccion).HasMaxLength(150);
             entity.Property(e => e.FechaRealizacion).HasColumnType("datetime");
             entity.Property(e => e.NumeroIdentificacion).HasMaxLength(50);
 
@@ -176,10 +190,6 @@ public partial class EncuestaFeriaContext : DbContext
                 .HasForeignKey(d => d.IdGenero)
                 .HasConstraintName("FK_RespuestaEncuesta_Genero");
 
-            entity.HasOne(d => d.IdMotivoVisitaNavigation).WithMany(p => p.RespuestaEncuesta)
-                .HasForeignKey(d => d.IdMotivoVisita)
-                .HasConstraintName("FK_RespuestaEncuesta_MotivoVisita");
-
             entity.HasOne(d => d.IdMunicipioNavigation).WithMany(p => p.RespuestaEncuesta)
                 .HasForeignKey(d => d.IdMunicipio)
                 .HasConstraintName("FK_RespuestaEncuesta_Municipio");
@@ -191,14 +201,6 @@ public partial class EncuestaFeriaContext : DbContext
             entity.HasOne(d => d.IdTipoDocuementoIdentificacionNavigation).WithMany(p => p.RespuestaEncuesta)
                 .HasForeignKey(d => d.IdTipoDocuementoIdentificacion)
                 .HasConstraintName("FK_RespuestaEncuesta_Tipo_Identificacion");
-
-            entity.HasOne(d => d.IdTipoPublicidadNavigation).WithMany(p => p.RespuestaEncuesta)
-                .HasForeignKey(d => d.IdTipoPublicidad)
-                .HasConstraintName("FK_RespuestaEncuesta_TipoPublicidad");
-
-            entity.HasOne(d => d.IdTiposCompraNavigation).WithMany(p => p.RespuestaEncuesta)
-                .HasForeignKey(d => d.IdTiposCompra)
-                .HasConstraintName("FK_RespuestaEncuesta_TiposCompra");
         });
 
         modelBuilder.Entity<RespuestaMultiple>(entity =>
@@ -235,18 +237,19 @@ public partial class EncuestaFeriaContext : DbContext
             entity.Property(e => e.NombreTipoPregunta).HasMaxLength(100);
         });
 
-        modelBuilder.Entity<TipoPublicidad>(entity =>
+        modelBuilder.Entity<VwPreguntasConCondiciones>(entity =>
         {
-            entity.HasKey(e => e.IdTipoPublicidad);
+            entity
+                .HasNoKey()
+                .ToView("vw_PreguntasConCondiciones");
 
-            entity.Property(e => e.NombreTipoPublicidad).HasMaxLength(150);
-        });
-
-        modelBuilder.Entity<TiposCompra>(entity =>
-        {
-            entity.HasKey(e => e.IdTipoCompra);
-
-            entity.Property(e => e.NombreTipoCompra).HasMaxLength(150);
+            entity.Property(e => e.NombreTipoPregunta).HasMaxLength(100);
+            entity.Property(e => e.TextoOpcion).HasMaxLength(255);
+            entity.Property(e => e.TextoPregunta).HasMaxLength(500);
+            entity.Property(e => e.TextoPreguntaDestino).HasMaxLength(500);
+            entity.Property(e => e.TipoAccion)
+                .HasMaxLength(50)
+                .IsUnicode(false);
         });
 
         OnModelCreatingPartial(modelBuilder);

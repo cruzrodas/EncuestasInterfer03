@@ -1,0 +1,264 @@
+﻿@page "/Encuesta"
+
+@using System.Text.Json
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.EncuestasServices
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@inject IEncuestaServices encuestaServices
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">Encuestas</h3>
+
+    <a href="/Encuesta/agregar"
+       class="btn mt-2"
+       style="background-color: #a91f23; color: white; border-color: #a91f23;">
+        Nueva Encuesta
+    </a>
+
+    <br />
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-2 text-center" Align="Align.Center">Encuestas Disponibles</MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Buscar por Título o Descripción"
+                              Variant="Variant.Outlined"
+                              @bind-Value="searchTerm"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Primary"
+                              OnDebounceIntervalElapsed="Search" />
+            </MudItem>
+        </MudGrid>
+
+        <br />
+
+        @if (isLoading)
+        {
+            <div class="spinner-container">
+                <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+            </div>
+        }
+        else if (paginatedResult == null || paginatedResult.Items == null || !paginatedResult.Items.Any())
+        {
+            <MudAlert Severity="Severity.Info">No hay encuestas disponibles.</MudAlert>
+        }
+        else
+        {
+            <MudTable T="Encuesta"
+                      ServerData="ServerReload"
+                      Dense="true"
+                      Hover="true"
+                      Bordered="true"
+                      Loading="@isLoading"
+                      RowClass="cursor-pointer"
+                      Class="printable-table">
+
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Título</MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh>Fecha Inicio</MudTh>
+                    <MudTh>Fecha Fin</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh Class="acciones">Acciones</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.IdEncuesta</MudTd>
+                    <MudTd DataLabel="Título">@context.Titulo</MudTd>
+                    <MudTd DataLabel="Descripción">
+                        @if (context.Descripcion?.Length > 50)
+                        {
+                            @($"{context.Descripcion.Substring(0, 50)}...")
+                        }
+                        else
+                        {
+                            @context.Descripcion
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Fecha Inicio">@context.FechaInicio?.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Fecha Fin">@context.FechaFin?.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Estado">
+                        @if (context.Activa == true && context.FechaInicio <= DateTime.Now && context.FechaFin >= DateTime.Now)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Activa</MudChip>
+                        }
+                        else if (context.FechaFin < DateTime.Now)
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small">Finalizada</MudChip>
+                        }
+                        else if (context.FechaInicio > DateTime.Now)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">Programada</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small">Inactiva</MudChip>
+                        }
+
+                    </MudTd>
+                    <MudTd DataLabel="Acciones" Class="acciones">
+                        <div class="d-grid gap-2 d-md-block">
+                            <a href="/Encuesta/detalle/@context.IdEncuesta" class="btn btn-info btn-sm">Ver</a>
+                            <a href="/Encuesta/agregar/@context.IdEncuesta" class="btn btn-warning btn-sm">Editar</a>
+                            @if (context.Activa == true)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" 
+                                           OnClick="@(() => ConfirmarDesactivar(context.IdEncuesta))">Desactivar</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" 
+                                           OnClick="@(() => ConfirmarActivar(context.IdEncuesta))">Activar</MudButton>
+                            }
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Encuestas por página:"
+                                   InfoFormat="@infoFormat"
+                                   PageSizeOptions="new int[] { 20, 25, 30, 40, int.MaxValue }"
+                                   OnPageChanged="LoadPage"
+                                   Class="acciones" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+</MudContainer>
+
+@code {
+    private MPaginatedResult<Encuesta>? paginatedResult;
+    private bool isLoading = false;
+    private string infoFormat = "{first_item}-{last_item} de {all_items}";
+    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+    private const int PageSize = 25;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPage(1);
+    }
+
+    private async Task LoadPage(int page)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            paginatedResult = await encuestaServices.GetPaginatedAsync(page, PageSize, searchTerm);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPage: {ex.Message}");
+            paginatedResult = new MPaginatedResult<Encuesta>
+                {
+                    Items = new List<Encuesta>(),
+                    TotalCount = 0,
+                    PageNumber = page,
+                    PageSize = PageSize
+                };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<Encuesta>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        isLoading = true;
+        try
+        {
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            paginatedResult = await encuestaServices.GetPaginatedAsync(page, pageSize, searchTerm);
+
+            return new TableData<Encuesta>
+                {
+                    Items = paginatedResult?.Items ?? new List<Encuesta>(),
+                    TotalItems = paginatedResult?.TotalCount ?? 0
+                };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en ServerReload: {ex.Message}");
+            return new TableData<Encuesta>
+                {
+                    Items = new List<Encuesta>(),
+                    TotalItems = 0
+                };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Search()
+    {
+        await LoadPage(1);
+    }
+
+    private async Task ConfirmarActivar(int idEncuesta)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar Activación",
+            "¿Está seguro que desea activar esta encuesta?",
+            yesText: "Sí", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await ActivarDesactivar(idEncuesta, true);
+        }
+    }
+
+    private async Task ConfirmarDesactivar(int idEncuesta)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar Desactivación",
+            "¿Está seguro que desea desactivar esta encuesta?",
+            yesText: "Sí", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await ActivarDesactivar(idEncuesta, false);
+        }
+    }
+
+    private async Task ActivarDesactivar(int idEncuesta, bool activar)
+    {
+        try
+        {
+            var resultado = await encuestaServices.ActivarDesactivarAsync(idEncuesta, activar);
+
+            if (resultado)
+            {
+                var mensaje = activar ? "Encuesta activada correctamente" : "Encuesta desactivada correctamente";
+                Snackbar.Add(mensaje, Severity.Success);
+                await LoadPage(1);
+            }
+            else
+            {
+                Snackbar.Add("Error al cambiar el estado de la encuesta", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

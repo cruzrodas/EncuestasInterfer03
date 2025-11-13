@@ -1,0 +1,203 @@
+﻿@page "/RespuestasEncuesta/detalle/{IdRespuestaEncuesta:int}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.RespuestaEncuestaService
+@using MudBlazor
+
+@inject IRespuestaEncuestaService respuestaEncuestaService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">Detalle de Entrevista</h3>
+
+    @if (isLoading)
+    {
+        <div class="spinner-container">
+            <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+        </div>
+    }
+    else if (respuestaEncuesta == null)
+    {
+        <MudAlert Severity="Severity.Error">No se pudo cargar la información de la entrevista.</MudAlert>
+    }
+    else
+    {
+        <!-- Información General -->
+        <MudPaper Elevation="3" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Person" /> Información del Entrevistado
+            </MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Encuesta:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdEncuestaNavigation?.Titulo</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Fecha de Realización:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.FechaRealizacion?.ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Tipo de Identificación:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdTipoDocuementoIdentificacionNavigation?.NombreIdentificacion</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>No. Identificación:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.NumeroIdentificacion</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Edad:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.EdadActual años</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Género:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdGeneroNavigation?.NombreGenero</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Nacionalidad:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdNacionalidadNavigation?.NombrePais</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Departamento:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdDepartamentoNavigation?.NombreDepartamento</MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1"><strong>Municipio:</strong></MudText>
+                    <MudText Typo="Typo.body1" Class="mb-3">@respuestaEncuesta.IdMunicipioNavigation?.NombreMunicipio</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Respuestas a las Preguntas -->
+        <MudPaper Elevation="3" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.QuestionAnswer" /> Respuestas de la Encuesta
+            </MudText>
+
+            @if (detalles == null || !detalles.Any())
+            {
+                <MudAlert Severity="Severity.Info">No hay respuestas registradas para esta entrevista.</MudAlert>
+            }
+            else
+            {
+                @foreach (var detalle in detalles)
+                {
+                    <MudCard Class="mb-3">
+                        <MudCardContent>
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">
+                                <strong>@detalle.IdPreguntaNavigation?.TextoPregunta</strong>
+                            </MudText>
+
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mb-2">
+                                @detalle.IdPreguntaNavigation?.IdTipoPreguntaNavigation?.NombreTipoPregunta
+                            </MudChip>
+
+                            <MudDivider Class="my-2" />
+
+                            @{
+                                var tipoPregunta = detalle.IdPreguntaNavigation?.IdTipoPreguntaNavigation?.NombreTipoPregunta;
+                            }
+
+                            @if (tipoPregunta == "Texto Abierto")
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Primary">
+                                    <strong>Respuesta:</strong> @detalle.ValorTexto
+                                </MudText>
+                            }
+                            else if (tipoPregunta == "Opción Única" || tipoPregunta == "Sí/No")
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Primary">
+                                    <strong>Respuesta:</strong> @detalle.IdOpcionNavigation?.TextoOpcion
+                                </MudText>
+                            }
+                            else if (tipoPregunta == "Opción Múltiple")
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Primary" Class="mb-1">
+                                    <strong>Respuestas seleccionadas:</strong>
+                                </MudText>
+                                @if (detalle.RespuestaMultiple != null && detalle.RespuestaMultiple.Any())
+                                {
+                                    <ul>
+                                        @foreach (var respMultiple in detalle.RespuestaMultiple)
+                                        {
+                                            <li>@respMultiple.IdOpcionNavigation?.TextoOpcion</li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                            else if (tipoPregunta == "Escala Numérica")
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Primary">
+                                    <strong>Calificación:</strong> @detalle.ValorNumerico / 10
+                                </MudText>
+                                <MudRating ReadOnly="true" SelectedValue="@(detalle.ValorNumerico ?? 0)" MaxValue="10" Size="Size.Small" Color="Color.Warning" />
+                            }
+                            else if (tipoPregunta == "Fecha")
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Primary">
+                                    <strong>Fecha:</strong> @detalle.FechaRespuesta?.ToString("dd/MM/yyyy")
+                                </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                }
+            }
+        </MudPaper>
+
+        <!-- Botón de Regresar -->
+        <div class="d-flex justify-content-start mt-4">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="@(() => NavigationManager.NavigateTo("/RespuestasEncuesta"))">
+                Regresar al Listado
+            </MudButton>
+        </div>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public int IdRespuestaEncuesta { get; set; }
+
+    private RespuestaEncuesta? respuestaEncuesta;
+    private List<RespuestaDetalle>? detalles;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            respuestaEncuesta = await respuestaEncuestaService.GetByIdWithDetailsAsync(IdRespuestaEncuesta);
+            detalles = await respuestaEncuestaService.GetDetallesByRespuestaIdAsync(IdRespuestaEncuesta);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar los datos: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error en LoadData: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

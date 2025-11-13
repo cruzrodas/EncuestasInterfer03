@@ -1,0 +1,187 @@
+﻿@page "/RespuestasEncuesta"
+
+@using System.Text.Json
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.RespuestaEncuestaService
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@inject IRespuestaEncuestaService respuestaEncuestaService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">Entrevistas Realizadas</h3>
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-2 text-center" Align="Align.Center">Listado de Entrevistas</MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Buscar por No. Identificación o Título de Encuesta"
+                              Variant="Variant.Outlined"
+                              @bind-Value="searchTerm"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Primary"
+                              OnDebounceIntervalElapsed="Search" />
+            </MudItem>
+        </MudGrid>
+
+        <br />
+
+        @if (isLoading)
+        {
+            <div class="spinner-container">
+                <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+            </div>
+        }
+        else if (paginatedResult == null || paginatedResult.Items == null || !paginatedResult.Items.Any())
+        {
+            <MudAlert Severity="Severity.Info">No hay entrevistas registradas.</MudAlert>
+        }
+        else
+        {
+            <MudTable T="RespuestaEncuesta"
+                      ServerData="ServerReload"
+                      Dense="true"
+                      Hover="true"
+                      Bordered="true"
+                      Loading="@isLoading"
+                      RowClass="cursor-pointer"
+                      Class="printable-table">
+
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Encuesta</MudTh>
+                    <MudTh>Tipo Doc.</MudTh>
+                    <MudTh>No. Identificación</MudTh>
+                    <MudTh>Edad</MudTh>
+                    <MudTh>Género</MudTh>
+                    <MudTh>Nacionalidad</MudTh>
+                    <MudTh>Departamento</MudTh>
+                    <MudTh>Municipio</MudTh>
+                    <MudTh>Fecha</MudTh>
+                    <MudTh Class="acciones">Acciones</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.IdRespuestaEncuesta</MudTd>
+                    <MudTd DataLabel="Encuesta">@context.IdEncuestaNavigation?.Titulo</MudTd>
+                    <MudTd DataLabel="Tipo Doc.">@context.IdTipoDocuementoIdentificacionNavigation?.NombreIdentificacion</MudTd>
+                    <MudTd DataLabel="No. Identificación">@context.NumeroIdentificacion</MudTd>
+                    <MudTd DataLabel="Edad">@context.EdadActual</MudTd>
+                    <MudTd DataLabel="Género">@context.IdGeneroNavigation?.NombreGenero</MudTd>
+                    <MudTd DataLabel="Nacionalidad">@context.IdNacionalidadNavigation?.NombrePais</MudTd>
+                    <MudTd DataLabel="Departamento">@context.IdDepartamentoNavigation?.NombreDepartamento</MudTd>
+                    <MudTd DataLabel="Municipio">@context.IdMunicipioNavigation?.NombreMunicipio</MudTd>
+                    <MudTd DataLabel="Fecha">@context.FechaRealizacion?.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd DataLabel="Acciones" Class="acciones">
+                        <div class="d-grid gap-2 d-md-block">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(() => VerDetalle(context.IdRespuestaEncuesta))">
+                                Ver Detalle
+                            </MudButton>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Entrevistas por página:"
+                                   InfoFormat="@infoFormat"
+                                   PageSizeOptions="new int[] { 10, 20, 25, 30, 40, int.MaxValue }"
+                                   OnPageChanged="LoadPage"
+                                   Class="acciones" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+</MudContainer>
+
+@code {
+    private MPaginatedResult<RespuestaEncuesta>? paginatedResult;
+    private bool isLoading = false;
+    private string infoFormat = "{first_item}-{last_item} de {all_items}";
+    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+    private const int PageSize = 20;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPage(1);
+    }
+
+    private async Task LoadPage(int page)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            paginatedResult = await respuestaEncuestaService.GetPaginatedAsync(page, PageSize, searchTerm);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPage: {ex.Message}");
+            paginatedResult = new MPaginatedResult<RespuestaEncuesta>
+                {
+                    Items = new List<RespuestaEncuesta>(),
+                    TotalCount = 0,
+                    PageNumber = page,
+                    PageSize = PageSize
+                };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<RespuestaEncuesta>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        isLoading = true;
+        try
+        {
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            paginatedResult = await respuestaEncuestaService.GetPaginatedAsync(page, pageSize, searchTerm);
+
+            return new TableData<RespuestaEncuesta>
+                {
+                    Items = paginatedResult?.Items ?? new List<RespuestaEncuesta>(),
+                    TotalItems = paginatedResult?.TotalCount ?? 0
+                };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en ServerReload: {ex.Message}");
+            return new TableData<RespuestaEncuesta>
+                {
+                    Items = new List<RespuestaEncuesta>(),
+                    TotalItems = 0
+                };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Search()
+    {
+        await LoadPage(1);
+    }
+
+    private void VerDetalle(int idRespuestaEncuesta)
+    {
+        NavigationManager.NavigateTo($"/RespuestasEncuesta/detalle/{idRespuestaEncuesta}");
+    }
+}

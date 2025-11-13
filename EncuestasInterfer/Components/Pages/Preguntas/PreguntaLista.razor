@@ -1,0 +1,337 @@
+﻿@page "/Pregunta"
+@page "/Pregunta/{IdEncuesta:int?}"
+
+@using System.Text.Json
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.PreguntasServices
+@using EncuestasInterfer.Services.EncuestasServices
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@inject IPreguntasServices preguntaServices
+@inject IEncuestaServices encuestaServices
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <h3 style="margin-bottom: 20px;">
+        Preguntas
+        @if (encuesta != null)
+        {
+            <span> - @encuesta.Titulo</span>
+        }
+    </h3>
+
+    @if (encuesta != null)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-3">
+            <strong>Encuesta:</strong> @encuesta.Titulo<br />
+            <strong>Estado:</strong> 
+            @if (encuesta.Activa == true && encuesta.FechaInicio <= DateTime.Now && encuesta.FechaFin >= DateTime.Now)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Activa</MudChip>
+            }
+            else if (encuesta.FechaFin < DateTime.Now)
+            {
+                <MudChip T="string"  Color="Color.Error" Size="Size.Small">Finalizada</MudChip>
+            }
+            else if (encuesta.FechaInicio > DateTime.Now)
+            {
+                <MudChip T="string"  Color="Color.Warning" Size="Size.Small">Programada</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Default" Size="Size.Small">Inactiva</MudChip>
+            }
+        </MudAlert>
+    }
+
+    <div class="d-flex gap-2">
+        @if (IdEncuesta.HasValue)
+        {
+            <a href="/Pregunta/agregar?idEncuesta=@IdEncuesta"
+               class="btn mt-2"
+               style="background-color: #a91f23; color: white; border-color: #a91f23;">
+                Nueva Pregunta
+            </a>
+            <a href="/Encuesta/detalle/@IdEncuesta"
+               class="btn btn-secondary mt-2">
+                Volver a la Encuesta
+            </a>
+        }
+        else
+        {
+            <a href="/Pregunta/agregar"
+               class="btn mt-2"
+               style="background-color: #a91f23; color: white; border-color: #a91f23;">
+                Nueva Pregunta
+            </a>
+        }
+    </div>
+
+    <br />
+
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-2 text-center" Align="Align.Center">
+            Preguntas @(IdEncuesta.HasValue ? "de la Encuesta" : "Disponibles")
+        </MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Buscar por Texto de Pregunta"
+                              Variant="Variant.Outlined"
+                              @bind-Value="searchTerm"
+                              Immediate="true"
+                              DebounceInterval="300"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Primary"
+                              OnDebounceIntervalElapsed="Search" />
+            </MudItem>
+        </MudGrid>
+
+        <br />
+
+        @if (isLoading)
+        {
+            <div class="spinner-container">
+                <img src="/images/world-spinner.gif" alt="Cargando..." class="spinner-image" />
+            </div>
+        }
+        else if (paginatedResult == null || paginatedResult.Items == null || !paginatedResult.Items.Any())
+        {
+            <MudAlert Severity="Severity.Info">No hay preguntas disponibles.</MudAlert>
+        }
+        else
+        {
+            <MudTable T="Pregunta"
+                      ServerData="ServerReload"
+                      Dense="true"
+                      Hover="true"
+                      Bordered="true"
+                      Loading="@isLoading"
+                      RowClass="cursor-pointer"
+                      Class="printable-table">
+
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    @if (!IdEncuesta.HasValue)
+                    {
+                        <MudTh>Encuesta</MudTh>
+                    }
+                    <MudTh>Pregunta</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh Class="acciones">Acciones</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.IdPregunta</MudTd>
+                    @if (!IdEncuesta.HasValue)
+                    {
+                        <MudTd DataLabel="Encuesta">@context.IdEncuestaNavigation?.Titulo</MudTd>
+                    }
+                    <MudTd DataLabel="Pregunta">
+                        @if (context.TextoPregunta?.Length > 100)
+                        {
+                            @($"{context.TextoPregunta.Substring(0, 100)}...")
+                        }
+                        else
+                        {
+                            @context.TextoPregunta
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Tipo">@context.IdTipoPreguntaNavigation?.NombreTipoPregunta</MudTd>
+                    <MudTd DataLabel="Estado">
+                        @if (context.Activa == true)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Activa</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string"  Color="Color.Default" Size="Size.Small">Inactiva</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Acciones" Class="acciones">
+                        <div class="d-grid gap-2 d-md-block">
+                            <a href="/Pregunta/detalle/@context.IdPregunta" class="btn btn-info btn-sm">Ver</a>
+                            <a href="/Pregunta/agregar/@context.IdPregunta" class="btn btn-warning btn-sm">Editar</a>
+                            @if (context.Activa == true)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error"
+                                           OnClick="@(() => ConfirmarDesactivar(context.IdPregunta))">Desactivar</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success"
+                                           OnClick="@(() => ConfirmarActivar(context.IdPregunta))">Activar</MudButton>
+                            }
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Settings"
+                                       Href="@($"/Preguntas/configurar-logica/{context.IdPregunta}")">
+                                Lógica
+                            </MudButton>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Preguntas por página:"
+                                   InfoFormat="@infoFormat"
+                                   PageSizeOptions="new int[] { 20, 25, 30, 40, int.MaxValue }"
+                                   OnPageChanged="LoadPage"
+                                   Class="acciones" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+</MudContainer>
+
+@code {
+    [Parameter] public int? IdEncuesta { get; set; }
+
+    private MPaginatedResult<Pregunta>? paginatedResult;
+    private Encuesta? encuesta;
+    private bool isLoading = false;
+    private string infoFormat = "{first_item}-{last_item} de {all_items}";
+    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+    private const int PageSize = 25;
+    private string searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdEncuesta.HasValue)
+        {
+            await LoadEncuesta();
+        }
+        await LoadPage(1);
+    }
+
+    private async Task LoadEncuesta()
+    {
+        try
+        {
+            encuesta = await encuestaServices.GetByIdAsync(IdEncuesta.Value);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar encuesta: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPage(int page)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            paginatedResult = await preguntaServices.GetPaginatedAsync(page, PageSize, searchTerm, IdEncuesta);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPage: {ex.Message}");
+            paginatedResult = new MPaginatedResult<Pregunta>
+                {
+                    Items = new List<Pregunta>(),
+                    TotalCount = 0,
+                    PageNumber = page,
+                    PageSize = PageSize
+                };
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<Pregunta>> ServerReload(TableState state, CancellationToken cancellationToken)
+    {
+        isLoading = true;
+        try
+        {
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            paginatedResult = await preguntaServices.GetPaginatedAsync(page, pageSize, searchTerm, IdEncuesta);
+
+            return new TableData<Pregunta>
+                {
+                    Items = paginatedResult?.Items ?? new List<Pregunta>(),
+                    TotalItems = paginatedResult?.TotalCount ?? 0
+                };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en ServerReload: {ex.Message}");
+            return new TableData<Pregunta>
+                {
+                    Items = new List<Pregunta>(),
+                    TotalItems = 0
+                };
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task Search()
+    {
+        await LoadPage(1);
+    }
+
+    private async Task ConfirmarActivar(int idPregunta)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar Activación",
+            "¿Está seguro que desea activar esta pregunta?",
+            yesText: "Sí", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await ActivarDesactivar(idPregunta, true);
+        }
+    }
+
+    private async Task ConfirmarDesactivar(int idPregunta)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar Desactivación",
+            "¿Está seguro que desea desactivar esta pregunta?",
+            yesText: "Sí", cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await ActivarDesactivar(idPregunta, false);
+        }
+    }
+
+    private async Task ActivarDesactivar(int idPregunta, bool activar)
+    {
+        try
+        {
+            var resultado = await preguntaServices.ActivarDesactivarAsync(idPregunta, activar);
+
+            if (resultado)
+            {
+                var mensaje = activar ? "Pregunta activada correctamente" : "Pregunta desactivada correctamente";
+                Snackbar.Add(mensaje, Severity.Success);
+                await LoadPage(1);
+            }
+            else
+            {
+                Snackbar.Add("Error al cambiar el estado de la pregunta", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}
