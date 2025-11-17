@@ -106,12 +106,6 @@
                     return false;
                 });
 
-                <MudProgressLinear Color="Color.Primary"
-                                   Value="@((double)preguntasRespondidas / preguntasVisibles * 100)"
-                                   Class="mb-2" />
-                <MudText Typo="Typo.caption" Class="mb-4">
-                    Progreso: @preguntasRespondidas de @preguntasVisibles preguntas respondidas
-                </MudText>
             }
 
             <MudDivider Class="mb-4" />
@@ -143,7 +137,13 @@
                         <MudTextField Label="Número de Identificación"
                                       @bind-Value="respuestaEncuesta.NumeroIdentificacion"
                                       Variant="Variant.Outlined"
-                                      Required="true" />
+                                      Required="true"
+                                      MaxLength="13"
+                                      Counter="13"
+                                      Immediate="true"
+                                      InputType="InputType.Text"
+                                      OnKeyPress="@OnKeyPressNumerico"
+                                      Pattern="[0-9]*" />
                     </MudItem>
 
                     <MudItem xs="12" md="4">
@@ -668,7 +668,7 @@
                 : 1;
 
             <div class="mb-3">
-                <MudText Typo="Typo.body2" Class="mb-2">Seleccione su calificación:</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">Seleccione su calificación: Donde 1 es totalmente Insatisfecho y 5 es totalemnte Satisfecho</MudText>
                 <div class="d-flex gap-2 flex-wrap">
                     @for (int i = 1; i <= 5; i++)
                     {
@@ -855,4 +855,22 @@
 
         NavigationManager.NavigateTo("/ResponderEncuesta", true);
     }
+
+    private void OnKeyPressNumerico(KeyboardEventArgs e)
+    {
+        // Solo permite números
+        if (!char.IsDigit(e.Key[0]) && e.Key != "Backspace" && e.Key != "Delete" && e.Key != "Tab")
+        {
+            // Bloquea la entrada
+            return;
+        }
+
+        // Si ya tiene 13 caracteres, bloquea nuevas entradas (excepto Backspace/Delete)
+        if (respuestaEncuesta.NumeroIdentificacion?.Length >= 13 &&
+            e.Key != "Backspace" && e.Key != "Delete")
+        {
+            return;
+        }
+    }
+
 }
