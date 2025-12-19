@@ -2,6 +2,7 @@ using EncuestasInterfer.BioTime;
 using EncuestasInterfer.Components;
 using EncuestasInterfer.Models;
 using EncuestasInterfer.Services.AnalisisEncuestaServices;
+using EncuestasInterfer.Services.AsistenciaServices;
 using EncuestasInterfer.Services.DepartamentoService;
 using EncuestasInterfer.Services.DepartamentoServices;
 using EncuestasInterfer.Services.EncuestaServices;
@@ -44,6 +45,7 @@ builder.Services.AddTransient<IRespuestaMultipleServices, SRespuestaMultipleServ
 builder.Services.AddTransient<IRespuestaEncuestaService, SRespuestaEncuestaService>();
 builder.Services.AddTransient<IOpcionRespuestaCondicionService, SOpcionRespuestaCondicionService>();
 builder.Services.AddTransient<IAnalisisEncuestaService, SAnalisisEncuestaService>();
+builder.Services.AddTransient<IAsistenciaService, AsistenciaServiceSinDTO>();
 
 builder.Services.AddRadzenComponents();
 
