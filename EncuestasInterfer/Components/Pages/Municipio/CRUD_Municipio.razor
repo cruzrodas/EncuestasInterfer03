@@ -31,7 +31,7 @@
                     <MudTextField Label="Nombre del Municipio"
                                   @bind-Value="municipio.NombreMunicipio"
                                   For="@(() => municipio.NombreMunicipio)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Required="true"
                                   RequiredError="El nombre del municipio es requerido"
                                   MaxLength="100"
@@ -41,7 +41,7 @@
 
                 <MudItem xs="12" md="6">
                     <MudSelect T="int?" Label="País" @bind-Value="selectedNacionalidadId"
-                               Variant="Variant.Outlined"
+                               Variant="MudVariant.Outlined"
                                Required="true"
                                RequiredError="Seleccione un país">
                         <MudSelectItem T="int?" Value="null">Seleccione un país</MudSelectItem>
@@ -57,7 +57,7 @@
 
                 <MudItem xs="12" md="6">
                     <MudSelect T="int?" Label="Departamento" @bind-Value="municipio.IdDepartamento"
-                               Variant="Variant.Outlined"
+                               Variant="MudVariant.Outlined"
                                Required="true"
                                RequiredError="Seleccione un departamento"
                                Disabled="@(selectedNacionalidadId == null)">
@@ -74,15 +74,15 @@
             </MudGrid>
 
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="@(() => NavigationManager.NavigateTo("/Municipio"))">
                     Regresar
                 </MudButton>
 
-                <MudButton ButtonType="ButtonType.Submit"
-                           Variant="Variant.Filled"
+                <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                           Variant="MudVariant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Save"
                            Disabled="@isSubmitting">

@@ -27,7 +27,7 @@
                     <MudTextField Label="Nombre de Identificación"
                                   @bind-Value="tipoIdentificacion.NombreIdentificacion"
                                   For="@(() => tipoIdentificacion.NombreIdentificacion)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Required="true"
                                   RequiredError="El nombre de identificación es requerido"
                                   MaxLength="100"
@@ -39,7 +39,7 @@
                     <MudTextField Label="Descripción"
                                   @bind-Value="tipoIdentificacion.DescripcionIdentificacion"
                                   For="@(() => tipoIdentificacion.DescripcionIdentificacion)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Lines="3"
                                   MaxLength="250"
                                   Counter="250"
@@ -48,15 +48,14 @@
             </MudGrid>
 
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="@(() => NavigationManager.NavigateTo("/TipoIdentificacion"))">
                     Regresar
                 </MudButton>
-
-                <MudButton ButtonType="ButtonType.Submit"
-                           Variant="Variant.Filled"
+                <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                           Variant="MudVariant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Save"
                            Disabled="@isSubmitting">

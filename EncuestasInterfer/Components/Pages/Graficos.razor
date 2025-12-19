@@ -1,0 +1,348 @@
+﻿@page "/Analisis/Graficos/{IdEncuesta:int}"
+
+@using EncuestasInterfer.Models
+@using EncuestasInterfer.Services.AnalisisEncuestaServices
+@using EncuestasInterfer.Services.EncuestasServices
+@using EncuestasInterfer.Services.PreguntasServices
+@using MudBlazor
+@using Radzen
+@using Radzen.Blazor
+
+@inject IAnalisisEncuestaService analisisService
+@inject IEncuestaServices encuestaService
+@inject IPreguntasServices preguntaService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>Análisis de Resultados</h3>
+            @if (encuesta != null && !string.IsNullOrEmpty(encuesta.Titulo))
+            {
+                <MudText Typo="Typo.h6" Color="Color.Secondary">@encuesta.Titulo</MudText>
+            }
+        </div>
+        <MudButton Variant="MudBlazor.Variant.Filled"
+                   Color="Color.Secondary"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="Regresar">
+            Regresar
+        </MudButton>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+            <MudText Class="mt-3">Cargando gráficos...</MudText>
+        </div>
+    }
+    else
+    {
+        <!-- Gráficos de Escala por Pregunta -->
+        @if (preguntasEscala != null && preguntasEscala.Any())
+        {
+            <MudPaper Elevation="3" Class="pa-4 mb-4">
+                <MudText Typo="Typo.h5" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.BarChart" /> Respuestas por Pregunta (Escala)
+                </MudText>
+
+                <MudGrid>
+                    @foreach (var pregunta in preguntasEscala)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCard>
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.subtitle1">@pregunta.TextoPregunta</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    @if (datosEscalaPorPregunta.ContainsKey(pregunta.IdPregunta))
+                                    {
+                                        <RadzenChart Style="height: 300px;">
+                                            <RadzenColumnSeries Data="@GetChartData(pregunta.IdPregunta)" 
+                                                              CategoryProperty="Categoria" 
+                                                              ValueProperty="Valor"
+                                                              Title="Respuestas">
+                                                <RadzenSeriesDataLabels Visible="true" />
+                                            </RadzenColumnSeries>
+                                            <RadzenColumnOptions Radius="5" />
+                                            <RadzenValueAxis>
+                                                <RadzenGridLines Visible="true" />
+                                                <RadzenAxisTitle Text="Cantidad" />
+                                            </RadzenValueAxis>
+                                            <RadzenCategoryAxis>
+                                                <RadzenAxisTitle Text="Escala" />
+                                            </RadzenCategoryAxis>
+                                        </RadzenChart>
+                                    }
+                                    else
+                                    {
+                                        <MudAlert Severity="Severity.Info">No hay datos para esta pregunta.</MudAlert>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Elevation="3" Class="pa-4 mb-4">
+                <MudAlert Severity="Severity.Info">
+                    No hay preguntas de tipo "Escala Numérica" en esta encuesta.
+                </MudAlert>
+            </MudPaper>
+        }
+
+        <!-- Gráfico de Edades por Municipio -->
+        <MudPaper Elevation="3" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.PieChart" /> Distribución de Edades por Municipio
+            </MudText>
+            @if (datosPieEdadesMunicipio != null && datosPieEdadesMunicipio.Any())
+            {
+                <RadzenChart Style="height: 500px;">
+                    <RadzenPieSeries Data="@datosPieEdadesMunicipio" 
+                                   CategoryProperty="Categoria" 
+                                   ValueProperty="Valor"
+                                   Title="Edades">
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </RadzenPieSeries>
+                    <RadzenLegend Position="LegendPosition.Right" />
+                </RadzenChart>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No hay datos disponibles para este gráfico.</MudAlert>
+            }
+        </MudPaper>
+
+        <!-- Gráfico de Edades por Género -->
+        <MudPaper Elevation="3" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.PieChart" /> Distribución de Edades por Género
+            </MudText>
+            @if (datosPieEdadesGenero != null && datosPieEdadesGenero.Any())
+            {
+                <RadzenChart Style="height: 500px;">
+                    <RadzenPieSeries Data="@datosPieEdadesGenero" 
+                                   CategoryProperty="Categoria" 
+                                   ValueProperty="Valor"
+                                   Title="Edades">
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </RadzenPieSeries>
+                    <RadzenLegend Position="LegendPosition.Right" />
+                </RadzenChart>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No hay datos disponibles para este gráfico.</MudAlert>
+            }
+        </MudPaper>
+
+        <!-- Gráfico de Visitantes por Municipio -->
+        <MudPaper Elevation="3" Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.BarChart" /> Visitantes por Municipio
+            </MudText>
+            @if (datosBarMunicipios != null && datosBarMunicipios.Any())
+            {
+                <RadzenChart Style="height: 500px;">
+                    <RadzenColumnSeries Data="@datosBarMunicipios" 
+                                      CategoryProperty="Categoria" 
+                                      ValueProperty="Valor"
+                                      Title="Visitantes"
+                                      Fill="#2196F3">
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </RadzenColumnSeries>
+                    <RadzenColumnOptions Radius="5" />
+                    <RadzenValueAxis>
+                        <RadzenGridLines Visible="true" />
+                        <RadzenAxisTitle Text="Cantidad de Visitantes" />
+                    </RadzenValueAxis>
+                    <RadzenCategoryAxis>
+                        <RadzenAxisTitle Text="Municipio" />
+                    </RadzenCategoryAxis>
+                    <RadzenLegend Visible="false" />
+                </RadzenChart>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No hay datos disponibles para este gráfico.</MudAlert>
+            }
+        </MudPaper>
+    }
+
+</MudContainer>
+
+@code {
+    [Parameter] public int IdEncuesta { get; set; }
+
+    private EncuestasInterfer.Models.Encuesta? encuesta;
+    private List<Pregunta> preguntasEscala = new();
+    private Dictionary<int, Dictionary<string, int>> datosEscalaPorPregunta = new();
+    
+    private List<DataItem> datosPieEdadesMunicipio = new();
+    private List<DataItem> datosPieEdadesGenero = new();
+    private List<DataItem> datosBarMunicipios = new();
+
+    private bool isLoading = true;
+
+    public class DataItem
+    {
+        public string Categoria { get; set; } = string.Empty;
+        public int Valor { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Cargar encuesta
+            encuesta = await encuestaService.GetByIdAsync(IdEncuesta);
+
+            if (encuesta == null)
+            {
+                Snackbar.Add("No se encontró la encuesta", Severity.Error);
+                return;
+            }
+
+            // Cargar preguntas de tipo Escala Numérica
+            var todasPreguntas = await preguntaService.GetByEncuestaAsync(IdEncuesta);
+            preguntasEscala = todasPreguntas
+                .Where(p => p.IdTipoPreguntaNavigation?.NombreTipoPregunta == "Escala Numérica")
+                .ToList();
+
+            // Cargar datos de escala por pregunta
+            foreach (var pregunta in preguntasEscala)
+            {
+                var datos = await analisisService.GetRespuestasPorEscalaAsync(pregunta.IdPregunta);
+                datosEscalaPorPregunta[pregunta.IdPregunta] = datos;
+            }
+
+            // Cargar gráficos
+            await LoadPieChartEdadesMunicipio();
+            await LoadPieChartEdadesGenero();
+            await LoadBarChartMunicipios();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error completo: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<DataItem> GetChartData(int idPregunta)
+    {
+        if (!datosEscalaPorPregunta.ContainsKey(idPregunta))
+            return new List<DataItem>();
+
+        return datosEscalaPorPregunta[idPregunta]
+            .Select(d => new DataItem { Categoria = d.Key, Valor = d.Value })
+            .OrderBy(d => d.Categoria)
+            .ToList();
+    }
+
+    private async Task LoadPieChartEdadesMunicipio()
+    {
+        try
+        {
+            var datos = await analisisService.GetEdadesPorMunicipioAsync(IdEncuesta);
+            
+            datosPieEdadesMunicipio = datos
+                .Select(rangoEdad => new DataItem
+                {
+                    Categoria = $"{rangoEdad.Key} ({rangoEdad.Value.Sum(m => m.Value)})",
+                    Valor = rangoEdad.Value.Sum(m => m.Value)
+                })
+                .Where(d => d.Valor > 0)
+                .OrderBy(x => GetOrdenRangoEdad(x.Categoria))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPieChartEdadesMunicipio: {ex.Message}");
+            datosPieEdadesMunicipio = new List<DataItem>();
+        }
+    }
+
+    private async Task LoadPieChartEdadesGenero()
+    {
+        try
+        {
+            var datos = await analisisService.GetEdadesPorGeneroAsync(IdEncuesta);
+            
+            datosPieEdadesGenero = datos
+                .Select(rangoEdad => new DataItem
+                {
+                    Categoria = $"{rangoEdad.Key} ({rangoEdad.Value.Sum(g => g.Value)})",
+                    Valor = rangoEdad.Value.Sum(g => g.Value)
+                })
+                .Where(d => d.Valor > 0)
+                .OrderBy(x => GetOrdenRangoEdad(x.Categoria))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadPieChartEdadesGenero: {ex.Message}");
+            datosPieEdadesGenero = new List<DataItem>();
+        }
+    }
+
+    private async Task LoadBarChartMunicipios()
+    {
+        try
+        {
+            var datos = await analisisService.GetVisitantesPorMunicipioAsync(IdEncuesta);
+            
+            datosBarMunicipios = datos
+                .Select(d => new DataItem { Categoria = d.Key, Valor = d.Value })
+                .OrderByDescending(d => d.Valor)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en LoadBarChartMunicipios: {ex.Message}");
+            datosBarMunicipios = new List<DataItem>();
+        }
+    }
+
+    private int GetOrdenRangoEdad(string rangoEdad)
+    {
+        return rangoEdad switch
+        {
+            var r when r.Contains("Niños") => 1,
+            var r when r.Contains("Adolescentes") => 2,
+            var r when r.Contains("Jóvenes (18-24") => 3,
+            var r when r.Contains("Jóvenes adultos") => 4,
+            var r when r.Contains("Adultos (40-54") => 5,
+            var r when r.Contains("Adultos mayores") => 6,
+            var r when r.Contains("Ciudadanos de Oro") => 7,
+            var r when r.Contains("Longevos") => 8,
+            _ => 9
+        };
+    }
+
+    private void Regresar()
+    {
+        NavigationManager.NavigateTo($"/VerRespuestasEncuesta/{IdEncuesta}");
+    }
+}

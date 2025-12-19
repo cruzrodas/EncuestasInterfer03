@@ -1,24 +1,27 @@
-using   EncuestasInterfer.Services.GeneroServices;
+using EncuestasInterfer.BioTime;
 using EncuestasInterfer.Components;
 using EncuestasInterfer.Models;
-using Microsoft.EntityFrameworkCore;
-using MudBlazor.Services;
-using EncuestasInterfer.Services.NacionalidadServices;
+using EncuestasInterfer.Services.AnalisisEncuestaServices;
 using EncuestasInterfer.Services.DepartamentoService;
 using EncuestasInterfer.Services.DepartamentoServices;
-using EncuestasInterfer.Services.MunicipioServices;
-using EncuestasInterfer.Services.TipoIdentificacionService;
-using EncuestasInterfer.Services.TipoIdentificacionServices;
-using EncuestasInterfer.Services.EncuestasServices;
 using EncuestasInterfer.Services.EncuestaServices;
-using EncuestasInterfer.Services.TipoPreguntaServices;
-using EncuestasInterfer.Services.PreguntasServices;
+using EncuestasInterfer.Services.EncuestasServices;
+using   EncuestasInterfer.Services.GeneroServices;
+using EncuestasInterfer.Services.MunicipioServices;
+using EncuestasInterfer.Services.NacionalidadServices;
+using EncuestasInterfer.Services.OpcionRespuestaCondicionService;
 using EncuestasInterfer.Services.OpcionRespuestaServices;
+using EncuestasInterfer.Services.PreguntasServices;
 using EncuestasInterfer.Services.RespuestaDetalleServices;
+using EncuestasInterfer.Services.RespuestaEncuestaService;
 using EncuestasInterfer.Services.RespuestaEncuestaServices;
 using EncuestasInterfer.Services.RespuestaMultipleServices;
-using EncuestasInterfer.Services.RespuestaEncuestaService;
-using EncuestasInterfer.Services.OpcionRespuestaCondicionService;
+using EncuestasInterfer.Services.TipoIdentificacionService;
+using EncuestasInterfer.Services.TipoIdentificacionServices;
+using EncuestasInterfer.Services.TipoPreguntaServices;
+using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,9 @@ builder.Services.AddTransient<IRespuestaEncuestaServices, SRespuestaEncuestaServ
 builder.Services.AddTransient<IRespuestaMultipleServices, SRespuestaMultipleServices>();
 builder.Services.AddTransient<IRespuestaEncuestaService, SRespuestaEncuestaService>();
 builder.Services.AddTransient<IOpcionRespuestaCondicionService, SOpcionRespuestaCondicionService>();
+builder.Services.AddTransient<IAnalisisEncuestaService, SAnalisisEncuestaService>();
+
+builder.Services.AddRadzenComponents();
 
 builder.Services.AddMudServices();
 
@@ -52,6 +58,11 @@ builder.Services.AddDbContextFactory<EncuestaFeriaContext>(options =>
     options.UseLazyLoadingProxies(false);
 });
 
+builder.Services.AddDbContextFactory<BioTimeContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("BioTimeConnection"));
+    options.EnableSensitiveDataLogging(true);
+});
 
 
 var app = builder.Build();

@@ -88,7 +88,7 @@
             {
                 <MudAlert Severity="Severity.Info">
                     Esta encuesta aún no tiene preguntas asociadas.
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Class="ml-2"
+                    <MudButton Variant="MudVariant.Text" Color="Color.Primary" Class="ml-2"
                                OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar?idEncuesta={IdEncuesta}"))">
                         Agregar Pregunta
                     </MudButton>
@@ -96,7 +96,7 @@
             }
             else
             {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-3"
+                <MudButton Variant="MudVariant.Filled" Color="Color.Primary" Class="mb-3"
                            StartIcon="@Icons.Material.Filled.Add"
                            OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar?idEncuesta={IdEncuesta}"))">
                     Agregar Pregunta
@@ -132,11 +132,11 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Acciones">
-                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning"
+                            <MudButton Size="Size.Small" Variant="MudVariant.Filled" Color="Color.Warning"
                                        OnClick="@(() => NavigationManager.NavigateTo($"/Pregunta/agregar/{context.IdPregunta}"))">
                                 Editar
                             </MudButton>
-                            <MudButton Variant="Variant.Outlined"
+                            <MudButton Variant="MudVariant.Outlined"
                                        Color="Color.Info"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Settings"
@@ -151,7 +151,7 @@
             <MudDivider Class="my-4" />
 
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="@(() => NavigationManager.NavigateTo("/Encuesta"))">
@@ -159,7 +159,7 @@
                 </MudButton>
 
                 <div>
-                    <MudButton Variant="Variant.Filled"
+                    <MudButton Variant="MudVariant.Filled"
                                Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Edit"
                                OnClick="@(() => NavigationManager.NavigateTo($"/Encuesta/agregar/{IdEncuesta}"))">

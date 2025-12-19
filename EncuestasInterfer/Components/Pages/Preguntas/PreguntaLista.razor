@@ -82,7 +82,7 @@
         <MudGrid Class="mt-2">
             <MudItem xs="12" sm="6">
                 <MudTextField T="string" Label="Buscar por Texto de Pregunta"
-                              Variant="Variant.Outlined"
+                              Variant="MudVariant.Outlined"
                               @bind-Value="searchTerm"
                               Immediate="true"
                               DebounceInterval="300"
@@ -160,15 +160,15 @@
                             <a href="/Pregunta/agregar/@context.IdPregunta" class="btn btn-warning btn-sm">Editar</a>
                             @if (context.Activa == true)
                             {
-                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error"
+                                <MudButton Size="Size.Small" Variant="MudVariant.Filled"  Color="Color.Error"
                                            OnClick="@(() => ConfirmarDesactivar(context.IdPregunta))">Desactivar</MudButton>
                             }
                             else
                             {
-                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success"
+                                <MudButton Size="Size.Small" Variant="MudVariant.Filled" Color="Color.Success"
                                            OnClick="@(() => ConfirmarActivar(context.IdPregunta))">Activar</MudButton>
                             }
-                            <MudButton Variant="Variant.Outlined"
+                            <MudButton Variant="MudVariant.Outlined"
                                        Color="Color.Info"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Settings"
@@ -198,7 +198,7 @@
     private Encuesta? encuesta;
     private bool isLoading = false;
     private string infoFormat = "{first_item}-{last_item} de {all_items}";
-    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+    private MudBlazor.DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
     private const int PageSize = 25;
     private string searchTerm = "";
 

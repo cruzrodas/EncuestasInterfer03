@@ -29,7 +29,7 @@
         <MudGrid Class="mt-2">
             <MudItem xs="12" sm="6">
                 <MudTextField T="string" Label="Buscar por Departamento"
-                              Variant="Variant.Outlined"
+                              Variant="MudVariant.Outlined"
                               @bind-Value="searchTerm"
                               Immediate="true"
                               DebounceInterval="300"
@@ -96,7 +96,7 @@
     private MPaginatedResult<Departamento>? paginatedResult;
     private bool isLoading = false;
     private string infoFormat = "{first_item}-{last_item} de {all_items}";
-    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+    private MudBlazor.DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
     private const int PageSize = 25;
     private string searchTerm = "";
 

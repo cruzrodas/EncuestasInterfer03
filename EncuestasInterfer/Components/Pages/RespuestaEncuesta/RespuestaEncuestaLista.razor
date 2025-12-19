@@ -21,7 +21,7 @@
         <MudGrid Class="mt-2">
             <MudItem xs="12" sm="6">
                 <MudTextField T="string" Label="Buscar por No. Identificación o Título de Encuesta"
-                              Variant="Variant.Outlined"
+                              Variant="MudVariant.Outlined"
                               @bind-Value="searchTerm"
                               Immediate="true"
                               DebounceInterval="300"
@@ -81,7 +81,7 @@
                     <MudTd DataLabel="Fecha">@context.FechaRealizacion?.ToString("dd/MM/yyyy HH:mm")</MudTd>
                     <MudTd DataLabel="Acciones" Class="acciones">
                         <div class="d-grid gap-2 d-md-block">
-                            <MudButton Variant="Variant.Filled"
+                            <MudButton Variant="MudVariant.Filled"
                                        Color="Color.Info"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Visibility"
@@ -108,7 +108,7 @@
     private MPaginatedResult<RespuestaEncuesta>? paginatedResult;
     private bool isLoading = false;
     private string infoFormat = "{first_item}-{last_item} de {all_items}";
-    private DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+    private MudBlazor.DialogOptions dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
     private const int PageSize = 20;
     private string searchTerm = "";
 

@@ -58,7 +58,7 @@
                                                Label="Acción"
                                                Value="@GetTipoAccion(opcion.IdOpcionRespuesta)"
                                                ValueChanged="@(valor => OnTipoAccionChanged(opcion.IdOpcionRespuesta, valor))"
-                                               Variant="Variant.Outlined"
+                                               Variant="MudVariant.Outlined"
                                                HelperText="¿Qué debe suceder al seleccionar esta opción?">
                                         <MudSelectItem T="string" Value="@("MOSTRAR_SIGUIENTE")">
                                             Continuar a la siguiente pregunta
@@ -79,7 +79,7 @@
                                                    Label="Pregunta destino"
                                                    Value="@GetPreguntaDestino(opcion.IdOpcionRespuesta)"
                                                    ValueChanged="@(valor => OnPreguntaDestinoChanged(opcion.IdOpcionRespuesta, valor))"
-                                                   Variant="Variant.Outlined"
+                                                   Variant="MudVariant.Outlined"
                                                    Required="true"
                                                    HelperText="Selecciona la pregunta a la que saltará">
                                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
@@ -107,14 +107,14 @@
 
             <!-- Botones de Acción -->
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="@(() => NavigationManager.NavigateTo($"/Encuesta/detalle/{pregunta?.IdEncuesta}"))">
                     Regresar
                 </MudButton>
 
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Success"
                            StartIcon="@Icons.Material.Filled.Save"
                            OnClick="GuardarConfiguracion"

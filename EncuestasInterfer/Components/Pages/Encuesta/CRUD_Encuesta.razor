@@ -27,7 +27,7 @@
                     <MudTextField Label="Título de la Encuesta"
                                   @bind-Value="encuesta.Titulo"
                                   For="@(() => encuesta.Titulo)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Required="true"
                                   RequiredError="El título es requerido"
                                   MaxLength="250"
@@ -39,7 +39,7 @@
                     <MudTextField Label="Descripción"
                                   @bind-Value="encuesta.Descripcion"
                                   For="@(() => encuesta.Descripcion)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Lines="5"
                                   MaxLength="1000"
                                   Counter="1000"
@@ -49,7 +49,7 @@
                 <MudItem xs="12" md="6">
                     <MudDatePicker Label="Fecha de Inicio"
                                    @bind-Date="fechaInicio"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Required="true"
                                    RequiredError="La fecha de inicio es requerida"
                                    DateFormat="dd/MM/yyyy"
@@ -59,7 +59,7 @@
                 <MudItem xs="12" md="6">
                     <MudDatePicker Label="Fecha de Fin"
                                    @bind-Date="fechaFin"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Required="true"
                                    RequiredError="La fecha de fin es requerida"
                                    DateFormat="dd/MM/yyyy"
@@ -81,15 +81,15 @@
             }
 
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="@(() => NavigationManager.NavigateTo("/Encuesta"))">
                     Regresar
                 </MudButton>
 
-                <MudButton ButtonType="ButtonType.Submit"
-                           Variant="Variant.Filled"
+                <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                           Variant="MudVariant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Save"
                            Disabled="@isSubmitting">

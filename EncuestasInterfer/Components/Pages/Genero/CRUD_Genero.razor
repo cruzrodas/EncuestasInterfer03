@@ -27,7 +27,7 @@
                 <MudTextField Label="Genero"
                               @bind-Value="genero.NombreGenero"
                               For="@(() => genero.NombreGenero)"
-                              Variant="Variant.Outlined"
+                              Variant="MudVariant.Outlined"
                               Required="true"
                               RequiredError="El nombre del genero es requerido"
                               MaxLength="100"
@@ -37,15 +37,15 @@
         </MudGrid>
 
         <div class="d-flex justify-content-between mt-4">
-            <MudButton Variant="Variant.Filled"
+            <MudButton Variant="MudVariant.Filled"
                        Color="Color.Secondary"
                        StartIcon="@Icons.Material.Filled.ArrowBack"
                        OnClick="@(() => NavigationManager.NavigateTo("/Genero"))">
                 Regresar
             </MudButton>
 
-            <MudButton ButtonType="ButtonType.Submit"
-                       Variant="Variant.Filled"
+                <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                       Variant="MudVariant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
                        Disabled="@isSubmitting">

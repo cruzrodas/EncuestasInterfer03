@@ -70,7 +70,7 @@
                                     </MudText>
                                 </MudCardContent>
                                 <MudCardActions>
-                                    <MudButton Variant="Variant.Filled"
+                                    <MudButton Variant="MudVariant.Filled"
                                                Color="Color.Primary"
                                                OnClick="@(() => SeleccionarEncuesta(enc))">
                                         Responder
@@ -121,7 +121,7 @@
                         <MudSelect T="int?"
                                    Label="Tipo de Identificación"
                                    @bind-Value="respuestaEncuesta.IdTipoDocuementoIdentificacion"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Required="true">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
                             @foreach (var tipo in tiposIdentificacion)
@@ -136,7 +136,7 @@
                     <MudItem xs="12" md="6">
                         <MudTextField Label="Número de Identificación"
                                       @bind-Value="respuestaEncuesta.NumeroIdentificacion"
-                                      Variant="Variant.Outlined"
+                                      Variant="MudVariant.Outlined"
                                       Required="true"
                                       MaxLength="13"
                                       Counter="13"
@@ -149,7 +149,7 @@
                     <MudItem xs="12" md="4">
                         <MudNumericField Label="Edad"
                                          @bind-Value="respuestaEncuesta.EdadActual"
-                                         Variant="Variant.Outlined"
+                                         Variant="MudVariant.Outlined"
                                          Min="1"
                                          Max="120"
                                          Required="true" />
@@ -159,7 +159,7 @@
                         <MudSelect T="int?"
                                    Label="Género"
                                    @bind-Value="respuestaEncuesta.IdGenero"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Required="true">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
                             @foreach (var genero in generos)
@@ -175,7 +175,7 @@
                         <MudSelect T="int?"
                                    Label="Nacionalidad"
                                    @bind-Value="respuestaEncuesta.IdNacionalidad"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Required="true">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
                             @foreach (var nac in nacionalidades)
@@ -183,7 +183,7 @@
                                 <MudSelectItem T="int?" Value="@nac.IdNacionalidad">
                                     @nac.NombrePais
                                 </MudSelectItem>
-                            }
+                            } 
                         </MudSelect>
                     </MudItem>
 
@@ -191,7 +191,7 @@
                         <MudSelect T="int?"
                                    Label="Departamento"
                                    @bind-Value="selectedDepartamentoId"
-                                   Variant="Variant.Outlined">
+                                   Variant="MudVariant.Outlined">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
                             @foreach (var dep in departamentos)
                             {
@@ -206,7 +206,7 @@
                         <MudSelect T="int?"
                                    Label="Municipio"
                                    @bind-Value="respuestaEncuesta.IdMunicipio"
-                                   Variant="Variant.Outlined"
+                                   Variant="MudVariant.Outlined"
                                    Disabled="@(!selectedDepartamentoId.HasValue)">
                             <MudSelectItem T="int?" Value="null">Seleccione...</MudSelectItem>
                             @foreach (var mun in municipios)
@@ -276,15 +276,15 @@
                 }
 
                 <div class="d-flex justify-content-between mt-4">
-                    <MudButton Variant="Variant.Filled"
+                    <MudButton Variant="MudVariant.Filled"
                                Color="Color.Secondary"
                                StartIcon="@Icons.Material.Filled.ArrowBack"
                                OnClick="RegresarASelector">
                         Cancelar
                     </MudButton>
 
-                    <MudButton ButtonType="ButtonType.Submit"
-                               Variant="Variant.Filled"
+                    <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                               Variant="MudVariant.Filled"
                                Color="Color.Success"
                                StartIcon="@Icons.Material.Filled.Send"
                                Disabled="@isSubmitting"
@@ -616,7 +616,7 @@
         {
             <MudTextField Label="Su respuesta"
                           @bind-Value="respuestasTexto[pregunta.IdPregunta]"
-                          Variant="Variant.Outlined"
+                          Variant="MudVariant.Outlined"
                           Lines="5"
                           Required="true" />
         }
@@ -673,7 +673,7 @@
                     @for (int i = 1; i <= 5; i++)
                     {
                         var numero = i;
-                        <MudButton Variant="@(valorActual == numero ? Variant.Filled : Variant.Outlined)"
+                        <MudButton Variant="@(valorActual == numero ? MudVariant.Filled : MudVariant.Outlined)"
                                    Color="Color.Primary"
                                    Size="Size.Large"
                                    OnClick="@(() => respuestasNumericas[pregunta.IdPregunta] = numero)">
@@ -688,7 +688,7 @@
             <MudDatePicker Label="Seleccione una fecha"
                            @bind-Date="respuestasFechas[pregunta.IdPregunta]"
                            DateFormat="dd/MM/yyyy"
-                           Variant="Variant.Outlined"
+                           Variant="MudVariant.Outlined"
                            Required="true" />
         }
     };
@@ -841,7 +841,7 @@
 
     private async Task MostrarConfirmacion()
     {
-        var options = new DialogOptions
+        var options = new MudBlazor.DialogOptions
         {
             CloseOnEscapeKey = false,
             BackdropClick = false

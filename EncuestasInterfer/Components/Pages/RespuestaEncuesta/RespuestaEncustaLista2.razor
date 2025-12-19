@@ -60,12 +60,18 @@
                                     </MudText>
                                 </MudCardContent>
                                 <MudCardActions>
-                                    <MudButton Variant="Variant.Filled"
+                                    <MudButton Variant="MudBlazor.Variant.Filled"
                                                Color="Color.Primary"
                                                StartIcon="@Icons.Material.Filled.Visibility"
                                                OnClick="@(() => SeleccionarEncuesta(enc))"
                                                Disabled="@(GetCantidadRespuestas(enc.IdEncuesta) == 0)">
                                         Ver Respuestas
+                                    </MudButton>
+                                    <MudButton Variant="MudBlazor.Variant.Outlined"
+                                               Color="Color.Success"
+                                               StartIcon="@Icons.Material.Filled.Analytics"
+                                               OnClick="@(() => NavigationManager.NavigateTo($"/Analisis/Graficos/{enc.IdEncuesta}"))">
+                                        Ver Análisis
                                     </MudButton>
                                 </MudCardActions>
                             </MudCard>
@@ -84,7 +90,7 @@
                     <MudText Typo="Typo.h4">@encuesta?.Titulo</MudText>
                     <MudText Typo="Typo.body2" Class="mt-1">@encuesta?.Descripcion</MudText>
                 </div>
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudBlazor.Variant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="RegresarASelector">
@@ -99,7 +105,7 @@
                 <MudItem xs="12" sm="6">
                     <MudTextField T="string"
                                   Label="Buscar por Identificacion"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudBlazor.Variant.Outlined"
                                   @bind-Value="searchTerm"
                                   Immediate="true"
                                   DebounceInterval="300"
@@ -155,7 +161,7 @@
                         <MudTd DataLabel="Municipio">@GetMunicipio(context)</MudTd>
                         <MudTd DataLabel="Fecha">@GetFecha(context)</MudTd>
                         <MudTd DataLabel="Acciones" Class="acciones">
-                            <MudButton Variant="Variant.Filled"
+                            <MudButton Variant="MudBlazor.Variant.Filled"
                                        Color="Color.Info"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.Visibility"

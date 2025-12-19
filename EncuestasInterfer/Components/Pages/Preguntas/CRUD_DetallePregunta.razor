@@ -32,7 +32,7 @@
             <MudGrid>
                 <MudItem xs="12">
                     <MudSelect T="int?" Label="Encuesta" @bind-Value="pregunta.IdEncuesta"
-                               Variant="Variant.Outlined"
+                               Variant="MudVariant.Outlined"
                                Required="true"
                                RequiredError="Seleccione una encuesta"
                                Disabled="@(IdPregunta.HasValue)">
@@ -49,7 +49,7 @@
 
                 <MudItem xs="12" md="6">
                     <MudSelect T="int?" Label="Tipo de Pregunta" @bind-Value="pregunta.IdTipoPregunta"
-                               Variant="Variant.Outlined"
+                               Variant="MudVariant.Outlined"
                                Required="true"
                                RequiredError="Seleccione un tipo de pregunta">
                         <MudSelectItem T="int?" Value="null">Seleccione un tipo</MudSelectItem>
@@ -80,7 +80,7 @@
                     <MudTextField Label="Texto de la Pregunta"
                                   @bind-Value="pregunta.TextoPregunta"
                                   For="@(() => pregunta.TextoPregunta)"
-                                  Variant="Variant.Outlined"
+                                  Variant="MudVariant.Outlined"
                                   Required="true"
                                   RequiredError="El texto de la pregunta es requerido"
                                   Lines="3"
@@ -104,12 +104,12 @@
                                     <MudItem xs="10">
                                         <MudTextField Label="@($"Opción {index + 1}")"
                                                       @bind-Value="opcion.TextoOpcion"
-                                                      Variant="Variant.Outlined"
+                                                      Variant="MudVariant.Outlined"
                                                       Required="true"
                                                       MaxLength="255" />
                                     </MudItem>
                                     <MudItem xs="2">
-                                        <MudButton Variant="Variant.Filled"
+                                        <MudButton Variant="MudVariant.Filled"
                                                    Color="Color.Error"
                                                    StartIcon="@Icons.Material.Filled.Delete"
                                                    OnClick="@(() => EliminarOpcion(index))"
@@ -121,7 +121,7 @@
                             }
                         }
 
-                        <MudButton Variant="Variant.Outlined"
+                        <MudButton Variant="MudVariant.Outlined"
                                    Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.Add"
                                    OnClick="AgregarOpcion"
@@ -138,15 +138,15 @@
             }
 
             <div class="d-flex justify-content-between mt-4">
-                <MudButton Variant="Variant.Filled"
+                <MudButton Variant="MudVariant.Filled"
                            Color="Color.Secondary"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
                            OnClick="Regresar">
                     Regresar
                 </MudButton>
 
-                <MudButton ButtonType="ButtonType.Submit"
-                           Variant="Variant.Filled"
+                <MudButton ButtonType="MudBlazor.ButtonType.Submit"
+                           Variant="MudVariant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Save"
                            Disabled="@isSubmitting">
