@@ -1,0 +1,296 @@
+@page "/Asistencia/historial"
+
+@using EncuestasInterfer.BioTime
+@using EncuestasInterfer.Services.AsistenciaServices
+@using MudBlazor
+
+@inject IAsistenciaService asistenciaService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <MudText Typo="Typo.h4" Class="mb-4">
+        Historial de Asistencia por Empleado
+    </MudText>
+
+    <MudPaper Elevation="3" Class="pa-4">
+
+        <!-- ================= FILTROS ================= -->
+        <MudGrid Class="mt-2">
+
+            <MudItem xs="12" md="4">
+                <MudSelect T="PersonnelEmployee"
+                           Label="Seleccionar Empleado"
+                           @bind-Value="empleadoSeleccionado"
+                           Variant="MudVariant.Outlined"
+                           AnchorOrigin="Origin.BottomCenter"
+                           ToStringFunc="EmpleadoToString">
+                    @foreach (var emp in empleados)
+                    {
+                        <MudSelectItem Value="@emp">
+                            @($"{emp.EmpCode} - {emp.FirstName} {emp.LastName}")
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudDatePicker Label="Fecha Inicio"
+                               Date="@fechaInicio"
+                               DateChanged="@(d => fechaInicio = d)"
+                               DateFormat="dd/MM/yyyy"
+                               MaxDate="DateTime.Today"
+                               Variant="MudVariant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudDatePicker Label="Fecha Fin"
+                               Date="@fechaFin"
+                               DateChanged="@(d => fechaFin = d)"
+                               DateFormat="dd/MM/yyyy"
+                               MaxDate="DateTime.Today"
+                               Variant="MudVariant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="2">
+                <MudButton FullWidth
+                           Color="Color.Primary"
+                           Variant="MudVariant.Filled"
+                           OnClick="@ConsultarHistorial"
+                           Style="height:56px"
+                           StartIcon="@Icons.Material.Filled.Search">
+                    Consultar
+                </MudButton>
+            </MudItem>
+
+        </MudGrid>
+
+        <!-- ================= INFO EMPLEADO ================= -->
+        @if (empleadoSeleccionado != null && historialMarcajes != null)
+        {
+            <MudPaper Elevation="2" Class="pa-3 mt-4">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6">Empleado</MudText>
+                        <MudText><b>Código:</b> @empleadoSeleccionado.EmpCode</MudText>
+                        <MudText><b>Nombre:</b> @($"{empleadoSeleccionado.FirstName} {empleadoSeleccionado.LastName}")</MudText>
+                        <MudText><b>Departamento:</b> @(empleadoSeleccionado.Department?.DeptName ?? "N/A")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6">Período</MudText>
+                        <MudText><b>Desde:</b> @fechaInicio?.ToString("dd/MM/yyyy")</MudText>
+                        <MudText><b>Hasta:</b> @fechaFin?.ToString("dd/MM/yyyy")</MudText>
+                        <MudText><b>Total Marcajes:</b> @historialMarcajes.Count</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <!-- ================= CONTENIDO ================= -->
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center mt-4">
+                <MudProgressCircular Indeterminate Color="Color.Primary" />
+            </div>
+        }
+        else if (historialMarcajes == null || !historialMarcajes.Any())
+        {
+            @if (empleadoSeleccionado != null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">
+                    No hay marcajes registrados para el período seleccionado.
+                </MudAlert>
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.h6" Class="mt-4 mb-2">
+                Historial de Marcajes
+            </MudText>
+
+            @foreach (var grupo in historialMarcajes
+                .GroupBy(m => m.PunchTime.Date)
+                .OrderByDescending(g => g.Key))
+            {
+                var fecha = grupo.Key;
+                var marcajesDia = grupo.OrderBy(m => m.PunchTime).ToList();
+                var primero = marcajesDia.First();
+                var ultimo = marcajesDia.Last();
+
+                <MudExpansionPanels Class="mb-2">
+                    <MudExpansionPanel>
+
+                        <TitleContent>
+                            <div class="d-flex align-center">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Class="mr-2" />
+                                <MudText><b>@fecha.ToString("dddd, dd 'de' MMMM 'de' yyyy")</b></MudText>
+                                <MudSpacer />
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mr-2">
+                                    @marcajesDia.Count marcajes
+                                </MudChip>
+                                <MudText Class="mr-4">
+                                    <b>Entrada:</b> @primero.PunchTime.ToString("hh:mm tt")
+                                </MudText>
+                                <MudText>
+                                    <b>Salida:</b> @(marcajesDia.Count > 1
+                                    ? ultimo.PunchTime.ToString("hh:mm tt")
+                                    : "N/A")
+                                </MudText>
+                            </div>
+                        </TitleContent>
+
+                        <ChildContent>
+                            <MudTable T="IclockTransaction"
+                                      Items="@marcajesDia"
+                                      Dense Hover Bordered Striped Elevation="0">
+
+                                <HeaderContent>
+                                    <MudTh>Hora</MudTh>
+                                    <MudTh>Terminal</MudTh>
+                                    <MudTh>Ubicación</MudTh>
+                                    <MudTh>Tipo</MudTh>
+                                </HeaderContent>
+
+                                <RowTemplate>
+                                    <MudTd>
+                                        @context.PunchTime.ToString("hh:mm:ss tt")
+                                    </MudTd>
+
+                                    <MudTd>
+                                        @(context.Terminal?.Alias
+                                     ?? context.Terminal?.Sn
+                                     ?? "N/A")
+                                    </MudTd>
+
+
+                                    <MudTd>
+                                        @(context.Terminal?.Area?.AreaName ?? "N/A")
+                                    </MudTd>
+
+                                    <MudTd>
+                                        @{
+                                            var esPrimero = context == marcajesDia.First();
+                                            var esUltimo = context == marcajesDia.Last();
+                                        }
+
+                                        @if (esPrimero)
+                                        {
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.Login">
+                                                Entrada
+                                            </MudChip>
+                                        }
+                                        else if (esUltimo)
+                                        {
+                                            <MudChip T="string" Color="Color.Error" Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.Logout">
+                                                Salida
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Color="Color.Info" Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.SwapHoriz">
+                                                Intermedio
+                                            </MudChip>
+                                        }
+                                    </MudTd>
+                                </RowTemplate>
+
+                            </MudTable>
+                        </ChildContent>
+
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            }
+        }
+
+    </MudPaper>
+
+    <MudButton Class="mt-3"
+               Variant="MudVariant.Filled"
+               StartIcon="@Icons.Material.Filled.ArrowBack"
+               OnClick="@(() => NavigationManager.NavigateTo("/Asistencia"))">
+        Volver a Asistencia
+    </MudButton>
+
+</MudContainer>
+
+@code {
+
+    private List<PersonnelEmployee> empleados = new();
+    private PersonnelEmployee? empleadoSeleccionado;
+
+    private DateTime? fechaInicio = DateTime.Today.AddDays(-7);
+    private DateTime? fechaFin = DateTime.Today;
+
+    private List<IclockTransaction>? historialMarcajes;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEmpleados();
+    }
+
+    private async Task CargarEmpleados()
+    {
+        try
+        {
+            empleados = await asistenciaService.GetEmpleadosActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar empleados: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ConsultarHistorial()
+    {
+        if (empleadoSeleccionado is null)
+        {
+            Snackbar.Add("Debe seleccionar un empleado", Severity.Warning);
+            return;
+        }
+
+        if (fechaInicio is null || fechaFin is null)
+        {
+            Snackbar.Add("Debe seleccionar el rango de fechas", Severity.Warning);
+            return;
+        }
+
+        if (fechaFin < fechaInicio)
+        {
+            Snackbar.Add("La fecha fin debe ser mayor a la fecha inicio", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            historialMarcajes =
+                await asistenciaService.GetHistorialMarcajesEmpleadoAsync(
+                    empleadoSeleccionado.Id,
+                    fechaInicio.Value,
+                    fechaFin.Value);
+
+            Snackbar.Add(
+                historialMarcajes.Any()
+                    ? $"Se encontraron {historialMarcajes.Count} marcajes"
+                    : "No se encontraron marcajes",
+                historialMarcajes.Any() ? Severity.Success : Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al consultar historial: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string EmpleadoToString(PersonnelEmployee? e)
+        => e == null ? string.Empty : $"{e.EmpCode} - {e.FirstName} {e.LastName}";
+}

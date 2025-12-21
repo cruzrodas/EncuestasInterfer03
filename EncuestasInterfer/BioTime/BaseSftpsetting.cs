@@ -8,7 +8,7 @@ public partial class BaseSftpsetting
 {
     public int Id { get; set; }
 
-    public IPAddress Host { get; set; } = null!;
+    public string Host { get; set; } = null!;
 
     public int Port { get; set; }
 

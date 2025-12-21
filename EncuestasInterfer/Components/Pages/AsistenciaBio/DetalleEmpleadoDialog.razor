@@ -1,0 +1,82 @@
+﻿@using EncuestasInterfer.BioTime
+@using EncuestasInterfer.Services.AsistenciaServices
+@using MudBlazor
+
+@inject IAsistenciaService asistenciaService
+
+<MudText Typo="Typo.h6" Class="mb-4">
+    Detalle de Marcajes - @Fecha.ToString("dd/MM/yyyy")
+</MudText>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-center pa-4">
+        <MudProgressCircular Indeterminate="true" />
+    </div>
+}
+else if (marcajes == null || !marcajes.Any())
+{
+    <MudAlert Severity="Severity.Info">
+        No hay marcajes para esta fecha
+    </MudAlert>
+}
+else
+{
+    <MudTable T="IclockTransaction"
+              Items="@marcajes"
+              Dense="true"
+              Hover="true"
+              Bordered="true"
+              Striped="true">
+        <HeaderContent>
+            <MudTh>Hora</MudTh>
+            <MudTh>Terminal</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Hora">
+                @context.PunchTime.ToString("HH:mm:ss")
+            </MudTd>
+            <MudTd DataLabel="Terminal">
+                @(context.Terminal?.Alias ?? "N/A")
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter]
+    public int EmpleadoId { get; set; }
+
+    [Parameter]
+    public DateTime Fecha { get; set; }
+
+    private List<IclockTransaction>? marcajes;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Nombre correcto del método según la interfaz
+            marcajes = await asistenciaService
+                .GetMarcajesPorEmpleadoYFechaAsync(EmpleadoId, Fecha);
+
+            // Ordenar por hora de marcaje
+            if (marcajes != null && marcajes.Any())
+            {
+                marcajes = marcajes
+                    .OrderBy(m => m.PunchTime)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar marcajes: {ex.Message}");
+            marcajes = new List<IclockTransaction>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

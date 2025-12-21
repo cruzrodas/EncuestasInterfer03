@@ -19,6 +19,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
         public async Task<List<PersonnelEmployee>> GetEmpleadosActivosAsync()
         {
             return await _context.PersonnelEmployees
+                .AsNoTracking()
                 .Where(e => e.IsActive && !e.Deleted)
                 .Include(e => e.Department)
                 .Include(e => e.Position)
@@ -27,6 +28,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
                 .ThenBy(e => e.LastName)
                 .ToListAsync();
         }
+
 
         public async Task<List<PersonnelEmployee>> GetEmpleadosAsistieronAsync(DateTime fecha)
         {

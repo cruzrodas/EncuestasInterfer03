@@ -20,6 +20,18 @@
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+
+
+
+    <script>
+        window.downloadFile = function (fileName, base64) {
+            const link = document.createElement('a');
+            link.href = 'data:text/csv;base64,' + base64;
+            link.download = fileName;
+            link.click();
+        };
+    </script>
+
 </body>
 
 </html>

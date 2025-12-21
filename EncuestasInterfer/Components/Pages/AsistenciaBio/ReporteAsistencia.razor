@@ -1,0 +1,290 @@
+@page "/Asistencia/reporte"
+
+@using EncuestasInterfer.BioTime
+@using EncuestasInterfer.Services.AsistenciaServices
+@using MudBlazor
+
+@using System.Text
+
+@inject IAsistenciaService asistenciaService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <MudText Typo="Typo.h4" Class="mb-4">Reporte de Asistencia</MudText>
+
+    <!-- Filtros -->
+    <MudPaper Elevation="3" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Align="Align.Center" Class="mb-3">Generar Reporte</MudText>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker Label="Fecha Inicio"
+                               @bind-Date="fechaInicio"
+                               Variant="MudBlazor.Variant.Outlined"
+                               DateFormat="dd/MM/yyyy"
+                               MaxDate="DateTime.Today" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker Label="Fecha Fin"
+                               @bind-Date="fechaFin"
+                               Variant="MudBlazor.Variant.Outlined"
+                               DateFormat="dd/MM/yyyy"
+                               MaxDate="DateTime.Today" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string"
+                           Label="Departamento"
+                           Variant="MudBlazor.Variant.Outlined"
+                           @bind-Value="departamentoSeleccionado">
+                    <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
+                    @foreach (var d in departamentos)
+                    {
+                        <MudSelectItem Value="@d">@d</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudButton Color="Color.Primary"
+                           Variant="MudBlazor.Variant.Filled"
+                           FullWidth
+                           StartIcon="@Icons.Material.Filled.Assessment"
+                           Style="height:56px"
+                           OnClick="GenerarReporte">
+                    Generar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate Color="Color.Primary" Size="Size.Large" />
+    }
+    else if (datosReporte != null && datosReporte.Any())
+    {
+        <!-- Tabla -->
+        <MudPaper Elevation="3" Class="pa-4 printable-table">
+            <div class="d-flex justify-space-between mb-3">
+                <MudText Typo="Typo.h6">Resultados</MudText>
+
+                <div>
+                    <MudButton Color="Color.Success"
+                               Variant="MudBlazor.Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               Class="mr-2"
+                               OnClick="ExportarCSV">
+                        CSV
+                    </MudButton>
+
+                    <MudButton Variant="MudBlazor.Variant.Outlined"
+                               OnClick="@(() => JSRuntime.InvokeVoidAsync("window.print"))">
+                        Imprimir
+                    </MudButton>
+                </div>
+            </div>
+
+            <MudText Class="mb-2">
+                <strong>Período:</strong>
+                @fechaInicio?.ToString("dd/MM/yyyy") -
+                @fechaFin?.ToString("dd/MM/yyyy")
+            </MudText>
+
+            <MudTable Items="datosReporte" Dense Hover Bordered Striped>
+                <HeaderContent>
+                    <MudTh>Código</MudTh>
+                    <MudTh>Nombre</MudTh>
+                    <MudTh>Departamento</MudTh>
+                    <MudTh>Días Asistió</MudTh>
+                    <MudTh>Días Ausente</MudTh>
+                    <MudTh>Marcajes</MudTh>
+                    <MudTh>%</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd>@context.CodigoEmpleado</MudTd>
+                    <MudTd>@context.NombreCompleto</MudTd>
+                    <MudTd>@context.Departamento</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Color="Color.Success">@context.DiasAsistio</MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudChip T="string" Color="@(context.DiasAusente > 0 ? Color.Error : Color.Default)">
+                            @context.DiasAusente
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>@context.TotalMarcajes</MudTd>
+                    <MudTd>
+                        <MudProgressLinear Value="@((double)context.PorcentajeAsistencia)"
+                                           Color="@GetColorPorcentaje(context.PorcentajeAsistencia)">
+                            @context.PorcentajeAsistencia %
+                        </MudProgressLinear>
+
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+
+            <!-- Resumen -->
+            <MudDivider Class="my-4" />
+
+            <MudGrid>
+                <MudItem xs="12" sm="3">
+                    <MudText>Total empleados</MudText>
+                    <MudText Typo="Typo.h5">@datosReporte.Count</MudText>
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudText>Promedio asistencia</MudText>
+                    <MudText Typo="Typo.h5">@promedioAsistencia %</MudText>
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudText>Total marcajes</MudText>
+                    <MudText Typo="Typo.h5">@totalMarcajesGeneral</MudText>
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudText>Días hábiles</MudText>
+                    <MudText Typo="Typo.h5">@diasHabiles</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    <MudButton Class="mt-4"
+               StartIcon="@Icons.Material.Filled.ArrowBack"
+               OnClick="@(() => NavigationManager.NavigateTo("/Asistencia"))">
+        Volver
+    </MudButton>
+
+</MudContainer>
+
+<style>
+    @@media print {
+        .mud-button {
+            display: none !important;
+        }
+    }
+</style>
+
+@code {
+
+    private DateTime? fechaInicio = DateTime.Today.AddDays(-30);
+    private DateTime? fechaFin = DateTime.Today;
+    private string departamentoSeleccionado = "Todos";
+
+    private List<string> departamentos = new();
+    private List<ReporteAsistenciaItem>? datosReporte;
+
+    private bool isLoading;
+    private decimal promedioAsistencia;
+    private int totalMarcajesGeneral;
+    private int diasHabiles;
+
+    public class ReporteAsistenciaItem
+    {
+        public string CodigoEmpleado { get; set; } = "";
+        public string NombreCompleto { get; set; } = "";
+        public string Departamento { get; set; } = "";
+        public int DiasAsistio { get; set; }
+        public int DiasAusente { get; set; }
+        public int TotalMarcajes { get; set; }
+        public decimal PorcentajeAsistencia { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var empleados = await asistenciaService.GetEmpleadosActivosAsync();
+        departamentos = empleados
+            .Select(e => e.Department?.DeptName ?? "Sin Departamento")
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+    }
+
+    private async Task GenerarReporte()
+    {
+        if (fechaInicio > fechaFin)
+        {
+            Snackbar.Add("Rango de fechas inválido", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        datosReporte = new();
+
+        var empleados = await asistenciaService.GetEmpleadosActivosAsync();
+
+        if (departamentoSeleccionado != "Todos")
+        {
+            empleados = empleados
+                .Where(e => e.Department?.DeptName == departamentoSeleccionado)
+                .ToList();
+        }
+
+        diasHabiles = Enumerable.Range(0, (fechaFin.Value - fechaInicio.Value).Days + 1)
+            .Select(d => fechaInicio.Value.AddDays(d))
+            .Count(f => f.DayOfWeek != DayOfWeek.Saturday && f.DayOfWeek != DayOfWeek.Sunday);
+
+        foreach (var e in empleados)
+        {
+            int asistio = 0;
+            int marcajes = 0;
+
+            for (var f = fechaInicio.Value; f <= fechaFin.Value; f = f.AddDays(1))
+            {
+                if (await asistenciaService.EmpleadoAsistioAsync(e.Id, f))
+                {
+                    asistio++;
+                    marcajes += await asistenciaService.GetTotalMarcajesEmpleadoAsync(e.Id, f);
+                }
+            }
+
+            datosReporte.Add(new()
+            {
+                CodigoEmpleado = e.EmpCode.ToString(),
+                NombreCompleto = $"{e.FirstName} {e.LastName}",
+                Departamento = e.Department?.DeptName ?? "N/A",
+                DiasAsistio = asistio,
+                DiasAusente = diasHabiles - asistio,
+                TotalMarcajes = marcajes,
+                PorcentajeAsistencia = diasHabiles == 0 ? 0 : Math.Round((decimal)asistio / diasHabiles * 100, 2)
+            });
+        }
+
+        promedioAsistencia = datosReporte.Any()
+            ? Math.Round(datosReporte.Average(x => x.PorcentajeAsistencia), 2)
+            : 0;
+
+        totalMarcajesGeneral = datosReporte.Sum(x => x.TotalMarcajes);
+        isLoading = false;
+    }
+
+    private async Task ExportarCSV()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("Codigo,Nombre,Departamento,DiasAsistio,DiasAusente,Marcajes,Porcentaje");
+
+        foreach (var r in datosReporte!)
+        {
+            sb.AppendLine($"{r.CodigoEmpleado},{r.NombreCompleto},{r.Departamento},{r.DiasAsistio},{r.DiasAusente},{r.TotalMarcajes},{r.PorcentajeAsistencia}");
+        }
+
+        await JSRuntime.InvokeVoidAsync(
+            "downloadFile",
+            "Reporte_Asistencia.csv",
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(sb.ToString()))
+        );
+    }
+
+    private Color GetColorPorcentaje(decimal p)
+        => p >= 90 ? Color.Success :
+           p >= 75 ? Color.Info :
+           p >= 60 ? Color.Warning :
+           Color.Error;
+}

@@ -1,0 +1,363 @@
+@page "/Asistencia"
+
+@using System.Text.Json
+@using EncuestasInterfer.BioTime
+@using EncuestasInterfer.Services.AsistenciaServices
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+
+@inject IAsistenciaService asistenciaService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    <MudText Typo="Typo.h4" Class="mb-4">Sistema de Control de Asistencia</MudText>
+
+    <!-- ================= RESUMEN ================= -->
+    <MudPaper Elevation="3" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-3">
+            Resumen de Asistencia
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-3" Style="background:#667eea;color:white">
+                    <MudText Typo="Typo.h6">Total Empleados</MudText>
+                    <MudText Typo="Typo.h3">@totalEmpleados</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-3" Style="background:#11998e;color:white">
+                    <MudText Typo="Typo.h6">Asistieron</MudText>
+                    <MudText Typo="Typo.h3">@totalAsistencias</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-3" Style="background:#ee0979;color:white">
+                    <MudText Typo="Typo.h6">Ausentes</MudText>
+                    <MudText Typo="Typo.h3">@totalAusencias</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-3" Style="background:#f093fb;color:white">
+                    <MudText Typo="Typo.h6">% Asistencia</MudText>
+                    <MudText Typo="Typo.h3">@porcentajeAsistencia.ToString("F2")%</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- ================= FILTROS ================= -->
+    <MudPaper Elevation="3" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudDatePicker Label="Fecha"
+                               @bind-Date="fechaConsulta"
+                               DateFormat="dd/MM/yyyy"
+                               MaxDate="DateTime.Today"
+                               Variant="MudBlazor.Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudTextField T="string"
+                              Label="Buscar"
+                              @bind-Value="searchTerm"
+                              Variant="MudBlazor.Variant.Outlined"
+                              DebounceInterval="300"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+
+            <MudItem xs="12" md="2">
+                <MudSelect T="string"
+                           Label="Departamento"
+                           @bind-Value="departamentoSeleccionado"
+                           Variant="MudBlazor.Variant.Outlined">
+                    <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
+                    @foreach (var d in departamentos)
+                    {
+                        <MudSelectItem Value="@d">@d</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="2">
+                <MudButton FullWidth
+                           Color="Color.Primary"
+                           Variant="MudBlazor.Variant.Filled"
+                           OnClick="@CargarDatos"
+                           Style="height:56px">
+                    Consultar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- ================= TABS ================= -->
+    <MudTabs Rounded="true" PanelClass="pa-4">
+
+        <!-- ASISTIERON -->
+        <MudTabPanel Text="Asistieron" Icon="@Icons.Material.Filled.CheckCircle">
+
+            @if (isLoading)
+            {
+                <div class="d-flex justify-center pa-4">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                </div>
+            }
+            else
+            {
+                <MudTable T="PersonnelEmployee"
+                          Items="@empleadosFiltradosAsistieron"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="true"
+                          Striped="true"
+                          OnRowClick="@RowClickEvent">
+
+                    <HeaderContent>
+                        <MudTh>Código</MudTh>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Departamento</MudTh>
+                        <MudTh>Entrada</MudTh>
+                        <MudTh>Salida</MudTh>
+                        <MudTh>Marcajes</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+
+                    <RowTemplate>
+                        <MudTd DataLabel="Código">@context.EmpCode</MudTd>
+                        <MudTd DataLabel="Nombre">@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd DataLabel="Departamento">@(context.Department?.DeptName ?? "N/A")</MudTd>
+
+                        <MudTd DataLabel="Entrada">
+                            @(primerasEntradas.ContainsKey(context.Id)
+                                                    ? primerasEntradas[context.Id]?.PunchTime.ToString("hh:mm tt")
+                                                    : "--:--")
+                                                          </MudTd>
+
+                        <MudTd DataLabel="Salida">
+                            @(ultimasSalidas.ContainsKey(context.Id)
+                                                    ? ultimasSalidas[context.Id]?.PunchTime.ToString("hh:mm tt")
+                                                    : "--:--")
+                    </MudTd>
+
+                        <MudTd DataLabel="Marcajes">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                @(totalMarcajes.ContainsKey(context.Id) ? totalMarcajes[context.Id] : 0)
+                            </MudChip>
+                        </MudTd>
+
+                        <MudTd DataLabel="Acciones">
+                            <MudButton Size="Size.Small"
+                                       Variant=" MudBlazor.Variant.Filled"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => VerDetalleEmpleado(context.Id))">
+                                Ver
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+
+                </MudTable>
+                        }
+        </MudTabPanel>
+
+        <!-- AUSENTES -->
+        <MudTabPanel Text="Ausentes" Icon="@Icons.Material.Filled.Cancel">
+
+            @if (isLoading)
+            {
+                <div class="d-flex justify-center pa-4">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                </div>
+            }
+            else
+            {
+                <MudTable T="PersonnelEmployee"
+                          Items="@empleadosFiltradosAusentes"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="true"
+                          Striped="true">
+
+                    <HeaderContent>
+                        <MudTh>Código</MudTh>
+                        <MudTh>Nombre</MudTh>
+                        <MudTh>Departamento</MudTh>
+                        <MudTh>Estado</MudTh>
+                    </HeaderContent>
+
+                    <RowTemplate>
+                        <MudTd DataLabel="Código">@context.EmpCode</MudTd>
+                        <MudTd DataLabel="Nombre">@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd DataLabel="Departamento">@(context.Department?.DeptName ?? "N/A")</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small">Ausente</MudChip>
+                        </MudTd>
+                    </RowTemplate>
+
+                </MudTable>
+            }
+
+        </MudTabPanel>
+
+    </MudTabs>
+
+</MudContainer>
+
+@code {
+
+    private DateTime? fechaConsulta = DateTime.Today;
+    private string searchTerm = string.Empty;
+    private string departamentoSeleccionado = "Todos";
+    private bool isLoading;
+
+    private List<PersonnelEmployee>? empleadosAsistieron;
+    private List<PersonnelEmployee>? empleadosAusentes;
+    private List<string> departamentos = new();
+
+    private Dictionary<int, IclockTransaction?> primerasEntradas = new();
+    private Dictionary<int, IclockTransaction?> ultimasSalidas = new();
+    private Dictionary<int, int> totalMarcajes = new();
+
+    private int totalEmpleados;
+    private int totalAsistencias;
+    private int totalAusencias;
+    private decimal porcentajeAsistencia;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CargarDepartamentos();
+            await CargarDatos();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CargarDepartamentos()
+    {
+        try
+        {
+            var empleados = await asistenciaService.GetEmpleadosActivosAsync();
+            departamentos = empleados
+                .Select(e => e.Department?.DeptName ?? "Sin Departamento")
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar departamentos: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        if (fechaConsulta is null) return;
+
+        try
+        {
+            isLoading = true;
+
+            totalEmpleados = await asistenciaService.GetTotalEmpleadosActivosAsync();
+            totalAsistencias = await asistenciaService.GetTotalAsistenciasPorFechaAsync(fechaConsulta.Value);
+            totalAusencias = await asistenciaService.GetTotalAusenciasPorFechaAsync(fechaConsulta.Value);
+            porcentajeAsistencia = await asistenciaService.GetPorcentajeAsistenciaPorFechaAsync(fechaConsulta.Value);
+
+            empleadosAsistieron = await asistenciaService.GetEmpleadosAsistieronAsync(fechaConsulta.Value);
+            empleadosAusentes = await asistenciaService.GetEmpleadosNoAsistieronAsync(fechaConsulta.Value);
+
+            primerasEntradas.Clear();
+            ultimasSalidas.Clear();
+            totalMarcajes.Clear();
+
+            if (empleadosAsistieron != null)
+            {
+                foreach (var e in empleadosAsistieron)
+                {
+                    primerasEntradas[e.Id] = await asistenciaService.GetPrimeraEntradaAsync(e.Id, fechaConsulta.Value);
+                    ultimasSalidas[e.Id] = await asistenciaService.GetUltimaSalidaAsync(e.Id, fechaConsulta.Value);
+                    totalMarcajes[e.Id] = await asistenciaService.GetTotalMarcajesEmpleadoAsync(e.Id, fechaConsulta.Value);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<PersonnelEmployee> empleadosFiltradosAsistieron =>
+        Filtrar(empleadosAsistieron);
+
+    private IEnumerable<PersonnelEmployee> empleadosFiltradosAusentes =>
+        Filtrar(empleadosAusentes);
+
+    private IEnumerable<PersonnelEmployee> Filtrar(List<PersonnelEmployee>? lista)
+    {
+        if (lista is null) return Enumerable.Empty<PersonnelEmployee>();
+
+        var q = lista.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            q = q.Where(e =>
+                e.FirstName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.LastName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.EmpCode.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        if (departamentoSeleccionado != "Todos")
+        {
+            q = q.Where(e => e.Department?.DeptName == departamentoSeleccionado);
+        }
+
+        return q;
+    }
+
+    private void RowClickEvent(TableRowClickEventArgs<PersonnelEmployee> args)
+    {
+        Console.WriteLine($"Click en empleado: {args.Item.EmpCode}");
+    }
+
+    private async Task VerDetalleEmpleado(int empleadoId)
+    {
+        try
+        {
+            var parameters = new DialogParameters
+            {
+                { "EmpleadoId", empleadoId },
+                { "Fecha", fechaConsulta ?? DateTime.Today }
+            };
+
+            var options = new MudBlazor.DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true,
+                CloseButton = true,
+                CloseOnEscapeKey = true
+            };
+
+            await DialogService.ShowAsync<DetalleEmpleadoDialog>("Detalle de Marcajes", parameters, options);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al abrir detalle: {ex.Message}", Severity.Error);
+        }
+    }
+}
