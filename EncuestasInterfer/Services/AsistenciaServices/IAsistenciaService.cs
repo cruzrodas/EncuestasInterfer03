@@ -6,7 +6,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
     /// Interfaz para el servicio de control de asistencia
     /// Utiliza directamente los modelos de BioTime sin DTOs
     /// </summary>
-    public interface IAsistenciaService
+    public interface IAsistenciaServiceSQL
     {
         /// <summary>
         /// Obtiene todos los empleados activos

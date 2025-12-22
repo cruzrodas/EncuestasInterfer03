@@ -4,10 +4,11 @@ using Microsoft.EntityFrameworkCore;
 namespace EncuestasInterfer.Services.AsistenciaServices
 {
     /// <summary>
-    /// Servicio para el control y gestión de asistencia de empleados
-    /// Implementación SIN DTOs - usa directamente los modelos de BioTime
+    /// Servicio de control de asistencia sin DTOs
+    /// VERSIÓN FINAL: El dispositivo almacena en hora local
+    /// Solo especificamos UTC para que PostgreSQL lo acepte, pero NO convertimos la hora
     /// </summary>
-    public class AsistenciaServiceSinDTO : IAsistenciaService
+    public class AsistenciaServiceSinDTO : IAsistenciaServiceSQL
     {
         private readonly BioTimeContext _context;
 
@@ -16,10 +17,26 @@ namespace EncuestasInterfer.Services.AsistenciaServices
             _context = context;
         }
 
+        /// <summary>
+        /// Obtiene el rango para un día completo
+        /// Especifica UTC sin cambiar el valor para que PostgreSQL lo acepte
+        /// </summary>
+        private static (DateTime Inicio, DateTime Fin) ObtenerRangoDelDia(DateTime fecha)
+        {
+            // Obtener inicio y fin del día
+            var inicioDelDia = fecha.Date; // 00:00:00
+            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1); // 23:59:59
+
+            // CRÍTICO: Especificar UTC para PostgreSQL, pero SIN cambiar el valor
+            inicioDelDia = DateTime.SpecifyKind(inicioDelDia, DateTimeKind.Utc);
+            finDelDia = DateTime.SpecifyKind(finDelDia, DateTimeKind.Utc);
+
+            return (inicioDelDia, finDelDia);
+        }
+
         public async Task<List<PersonnelEmployee>> GetEmpleadosActivosAsync()
         {
             return await _context.PersonnelEmployees
-                .AsNoTracking()
                 .Where(e => e.IsActive && !e.Deleted)
                 .Include(e => e.Department)
                 .Include(e => e.Position)
@@ -29,22 +46,20 @@ namespace EncuestasInterfer.Services.AsistenciaServices
                 .ToListAsync();
         }
 
-
         public async Task<List<PersonnelEmployee>> GetEmpleadosAsistieronAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
-            // Obtener IDs únicos de empleados que marcaron asistencia
             var idsEmpleadosQueAsistieron = await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
                 .Select(t => t.EmpId)
                 .Distinct()
                 .ToListAsync();
 
-            // Obtener la información completa de esos empleados
             return await _context.PersonnelEmployees
-                .Where(e => idsEmpleadosQueAsistieron.Contains(e.Id))
+                .Where(e => e.IsActive
+                    && !e.Deleted
+                    && idsEmpleadosQueAsistieron.Contains(e.Id))
                 .Include(e => e.Department)
                 .Include(e => e.Position)
                 .Include(e => e.Company)
@@ -55,17 +70,14 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<List<PersonnelEmployee>> GetEmpleadosNoAsistieronAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
-            // Obtener IDs de empleados que SÍ asistieron
             var idsEmpleadosQueAsistieron = await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
                 .Select(t => t.EmpId)
                 .Distinct()
                 .ToListAsync();
 
-            // Obtener empleados activos que NO están en la lista de asistencias
             return await _context.PersonnelEmployees
                 .Where(e => e.IsActive
                     && !e.Deleted
@@ -80,8 +92,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<List<IclockTransaction>> GetMarcajesPorFechaAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
@@ -96,8 +107,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<List<IclockTransaction>> GetMarcajesPorEmpleadoYFechaAsync(int empleadoId, DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.EmpId == empleadoId
@@ -111,8 +121,8 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<List<IclockTransaction>> GetHistorialMarcajesEmpleadoAsync(int empleadoId, DateTime fechaInicio, DateTime fechaFin)
         {
-            var inicio = fechaInicio.Date;
-            var fin = fechaFin.Date.AddDays(1).AddTicks(-1);
+            var inicio = DateTime.SpecifyKind(fechaInicio.Date, DateTimeKind.Utc);
+            var fin = DateTime.SpecifyKind(fechaFin.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
 
             return await _context.IclockTransactions
                 .Where(t => t.EmpId == empleadoId
@@ -136,8 +146,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<int> GetTotalAsistenciasPorFechaAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
@@ -155,8 +164,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<int> GetTotalMarcajesPorFechaAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
@@ -177,8 +185,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<IclockTransaction?> GetPrimeraEntradaAsync(int empleadoId, DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.EmpId == empleadoId
@@ -191,8 +198,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<IclockTransaction?> GetUltimaSalidaAsync(int empleadoId, DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.EmpId == empleadoId
@@ -217,10 +223,8 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<Dictionary<string, decimal>> GetEstadisticasPorDepartamentoAsync(DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
-            // Obtener todos los departamentos con empleados activos
             var departamentos = await _context.PersonnelDepartments
                 .Where(d => d.PersonnelEmployees.Any(e => e.IsActive && !e.Deleted))
                 .Select(d => new
@@ -231,7 +235,6 @@ namespace EncuestasInterfer.Services.AsistenciaServices
                 })
                 .ToListAsync();
 
-            // Obtener asistencias por departamento
             var asistenciasPorDept = await _context.IclockTransactions
                 .Where(t => t.PunchTime >= inicioDelDia && t.PunchTime <= finDelDia)
                 .Where(t => t.Emp != null && t.Emp.Department != null)
@@ -244,7 +247,6 @@ namespace EncuestasInterfer.Services.AsistenciaServices
                 })
                 .ToListAsync();
 
-            // Calcular porcentajes
             var estadisticas = new Dictionary<string, decimal>();
 
             foreach (var dept in departamentos)
@@ -262,8 +264,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<bool> EmpleadoAsistioAsync(int empleadoId, DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .AnyAsync(t => t.EmpId == empleadoId
@@ -273,8 +274,7 @@ namespace EncuestasInterfer.Services.AsistenciaServices
 
         public async Task<int> GetTotalMarcajesEmpleadoAsync(int empleadoId, DateTime fecha)
         {
-            var inicioDelDia = fecha.Date;
-            var finDelDia = fecha.Date.AddDays(1).AddTicks(-1);
+            var (inicioDelDia, finDelDia) = ObtenerRangoDelDia(fecha);
 
             return await _context.IclockTransactions
                 .Where(t => t.EmpId == empleadoId

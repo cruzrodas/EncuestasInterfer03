@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <Folder Include="BioTime\" />
+    <Folder Include="BioTimeSQL\" />
   </ItemGroup>
 
 </Project>

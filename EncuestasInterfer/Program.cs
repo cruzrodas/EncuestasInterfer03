@@ -1,4 +1,5 @@
 using EncuestasInterfer.BioTime;
+using EncuestasInterfer.BioTimeSQL;
 using EncuestasInterfer.Components;
 using EncuestasInterfer.Models;
 using EncuestasInterfer.Services.AnalisisEncuestaServices;
@@ -21,6 +22,7 @@ using EncuestasInterfer.Services.TipoIdentificacionService;
 using EncuestasInterfer.Services.TipoIdentificacionServices;
 using EncuestasInterfer.Services.TipoPreguntaServices;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using MudBlazor.Services;
 using Radzen;
 
@@ -45,7 +47,7 @@ builder.Services.AddTransient<IRespuestaMultipleServices, SRespuestaMultipleServ
 builder.Services.AddTransient<IRespuestaEncuestaService, SRespuestaEncuestaService>();
 builder.Services.AddTransient<IOpcionRespuestaCondicionService, SOpcionRespuestaCondicionService>();
 builder.Services.AddTransient<IAnalisisEncuestaService, SAnalisisEncuestaService>();
-builder.Services.AddTransient<IAsistenciaService, AsistenciaServiceSinDTO>();
+builder.Services.AddTransient<IAsistenciaServiceSQL, AsistenciaServiceSinDTO>();
 
 builder.Services.AddRadzenComponents();
 
@@ -60,10 +62,53 @@ builder.Services.AddDbContextFactory<EncuestaFeriaContext>(options =>
     options.UseLazyLoadingProxies(false);
 });
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 builder.Services.AddDbContextFactory<BioTimeContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("BioTimeConnection"));
     options.EnableSensitiveDataLogging(true);
+});
+
+
+builder.Services.AddDbContextFactory<BioTimeSQLContext>(options =>
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("BioTimeSQLConnection"),
+        sqlServerOptions =>
+        {
+            // Retry en caso de fallas transitorias
+            sqlServerOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+
+            // Timeout de comandos (en segundos)
+            sqlServerOptions.CommandTimeout(60);
+
+            // Usar datetime2 para mejor precisión
+            sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        });
+
+    // Logging sensible (útil para desarrollo, desactivar en producción)
+    options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+
+    // Lazy loading desactivado (buena práctica)
+    options.UseLazyLoadingProxies(false);
+
+    // Configurar advertencias
+    options.ConfigureWarnings(warnings =>
+    {
+        warnings.Ignore(RelationalEventId.AmbientTransactionWarning);
+        // Opcional: ignorar advertencias de consultas divididas
+        // warnings.Ignore(RelationalEventId.MultipleCollectionIncludeWarning);
+    });
+
+    // Modo de seguimiento (solo en desarrollo para debugging)
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableDetailedErrors(true);
+    }
 });
 
 
